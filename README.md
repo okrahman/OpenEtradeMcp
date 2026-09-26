@@ -3,7 +3,7 @@
 [![build](https://github.com/kerryjiang/OpenEtradeMcp/actions/workflows/build.yml/badge.svg)](https://github.com/kerryjiang/OpenEtradeMcp/actions/workflows/build.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-An MCP (Model Context Protocol) server that exposes E*TRADE API operations as tools for AI agents. This allows AI assistants like Claude and GitHub Copilot to interact with E*TRADE's trading platform.
+An MCP (Model Context Protocol) server that exposes E*TRADE API operations as tools for AI agents. This allows AI assistants like Claude and GitHub Copilot to read E*TRADE account and market data and preview orders.
 
 ### NuGet Packages
 
@@ -16,13 +16,15 @@ An MCP (Model Context Protocol) server that exposes E*TRADE API operations as to
 
 - **OAuth 1.0a Authentication**: Interactive OAuth flow designed to work seamlessly with AI agents
 - **E*TRADE API Tools**: Auto-generated tools from E*TRADE's OpenAPI specification
-- **Order Confirmation Safety Gate**: Optional MCP elicitation-based confirmation for order placement, cancellation, and modification — prevents unintended trades by requiring explicit user approval via a native client dialog that the LLM cannot bypass
+- **Read-only policy**: Explicit operation allowlist and outbound method/route enforcement; both order previews remain available
+- **Encrypted OAuth persistence**: Reuse unexpired credentials across restarts, reboots, and redeployments
 - **Sandbox Support**: Test safely with E*TRADE's sandbox environment
 - **Global Tool**: Install as a .NET global tool for easy access
 
 ## Prerequisites
 
 - [.NET 8.0/9.0/10.0 SDK](https://dotnet.microsoft.com/download)
+- Linux or macOS with a local filesystem supporting exclusive locks, atomic rename, and directory fsync
 - E*TRADE Developer Account with API access
 - Consumer Key and Consumer Secret from [E*TRADE Developer Portal](https://developer.etrade.com/)
 
@@ -50,12 +52,15 @@ dotnet build
 export ETRADE_ConsumerKey="your-consumer-key"
 export ETRADE_ConsumerSecret="your-consumer-secret"
 export ETRADE_UseSandbox="true"  # Optional: use sandbox environment
+export ETRADE_TokenDirectory="/absolute/path/to/private/tokens"
+export ETRADE_TokenKeyFile="/absolute/path/to/private/oauth.key"
 ```
 
 ### Command Line Arguments
 
 ```bash
-etrade-mcp --ConsumerKey=your-key --ConsumerSecret=your-secret --UseSandbox=true
+etrade-mcp --UseSandbox=true --TokenDirectory=/absolute/path/to/private/tokens --TokenKeyFile=/absolute/path/to/private/oauth.key
+# Supply consumer credentials through environment variables.
 ```
 
 ## Running the Server
@@ -89,30 +94,16 @@ Add to your Claude Desktop config file:
       "env": {
         "ETRADE_ConsumerKey": "your-consumer-key",
         "ETRADE_ConsumerSecret": "your-consumer-secret",
-        "ETRADE_UseSandbox": "true"
+        "ETRADE_UseSandbox": "true",
+        "ETRADE_TokenDirectory": "/Users/{YourUserName}/.local/share/etrade/tokens",
+        "ETRADE_TokenKeyFile": "/Users/{YourUserName}/.local/share/etrade/oauth.key"
       }
     }
   }
 }
 ```
 
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json` 
-
-```json
-{
-  "mcpServers": {
-    "etrade": {
-      "command": "C:\\\\Users\\{YourUserName}\\.dotnet\\tools\\etrade-mcp",
-      "env": {
-        "ETRADE_ConsumerKey": "your-consumer-key",
-        "ETRADE_ConsumerSecret": "your-consumer-secret",
-        "ETRADE_UseSandbox": "true"
-      }
-    }
-  }
-}
-```
-
+Windows hosts must run the server in a Linux container or WSL. Native Windows storage is rejected because POSIX permission enforcement is required.
 
 ### VS Code with GitHub Copilot
 
@@ -146,7 +137,7 @@ Agent: "Authentication successful! You can now use E*TRADE API tools."
 ### 3. Additional OAuth Tools
 
 - `etrade_oauth_status` - Check authentication status
-- `etrade_oauth_renew` - Renew access token (tokens expire at midnight Eastern)
+- `etrade_oauth_renew` - Renew inactive access token (midnight Eastern requires reauthorization)
 - `etrade_oauth_revoke` - Log out and revoke access token
 
 ## Available Tools
@@ -166,9 +157,9 @@ Tools are auto-generated from the E*TRADE OpenAPI specification and include:
 
 - **Account Management** - List accounts, view account details
 - **Portfolio** - View positions and holdings
-- **Orders** - Place, preview, and manage orders
+- **Orders** - List order history, preview orders, and preview order changes
 - **Market Data** - Get quotes, option chains, and market information
-- **Alerts** - Manage price and trading alerts
+- **Transactions** - List transactions and view details
 
 ## Project Structure
 
@@ -183,93 +174,53 @@ OpenEtradeMcp/
 └── OpenEtradeMcp.sln              # Solution file
 ```
 
-## Order Confirmation Safety Gate
+## Persistent OAuth configuration
 
-When AI agents interact with brokerage accounts, a critical safety concern is preventing unintended order execution. The server includes an optional order confirmation feature that gates dangerous operations behind explicit user confirmation.
-
-### Enabling Order Confirmation
+Persistence is mandatory. Provision a random 256-bit key outside the application and source tree. Both configuration paths must be absolute. For example, run as the service user:
 
 ```bash
-export ETRADE_EnableOrderConfirmation="true"
+umask 077
+mkdir -p "$HOME/.local/share/etrade/tokens"
+chmod 700 "$HOME/.local/share/etrade" "$HOME/.local/share/etrade/tokens"
+# Run once; do not replace this key on restart or redeployment.
+openssl rand 32 > "$HOME/.local/share/etrade/oauth.key"
+chmod 600 "$HOME/.local/share/etrade/oauth.key"
+export ETRADE_TokenDirectory="$HOME/.local/share/etrade/tokens"
+export ETRADE_TokenKeyFile="$HOME/.local/share/etrade/oauth.key"
 ```
 
-Or in your MCP client configuration:
+The key is exactly 32 raw bytes, not hexadecimal or base64. The directory must be mode 0700; the key, credential file, and lock file must have no group or other permissions (normally 0600). Paths must not contain symbolic links. Ensure the service user owns the files, and protect parent directories from replacement by other users. Unsupported platforms or filesystems fail startup; there is no memory-only fallback.
 
-```json
-{
-  "mcpServers": {
-    "etrade": {
-      "command": "etrade-mcp",
-      "env": {
-        "ETRADE_ConsumerKey": "your-key",
-        "ETRADE_ConsumerSecret": "your-secret",
-        "ETRADE_EnableOrderConfirmation": "true"
-      }
-    }
-  }
-}
+Credentials use versioned AES-256-GCM with fresh nonces and authenticated binding to the consumer-key fingerprint and sandbox/production environment. Atomic replacement and flushed file/directory writes protect acknowledged transitions. Keep the persistent volume and external key together across deployment changes. A wrong key, changed consumer key/environment, corruption, unsupported version, or insecure permissions fails startup with a sanitized error. Missing credentials start unauthenticated. Never commit or bake the key or token files into an image.
+
+For containers, mount a durable, service-owned volume at `/var/lib/etrade/tokens` (0700) and mount the externally provisioned key read-only at `/run/etrade/oauth.key` (0600). Set `ETRADE_TokenDirectory` and `ETRADE_TokenKeyFile` to those paths, and retain both mounts when replacing the container. Use a filesystem that supports locks and fsync; do not use multiple replicas or a shared network store. The process holds an exclusive lock for its lifetime; a second process using that directory fails startup. Do not delete `store.lock` while a server runs.
+
+On startup, expired credentials are deleted. Unexpired credentials are renewed before authentication becomes usable. Transient provider failures retain encrypted credentials and expose `recoveryStatus: recovery_required`; the next business request retries recovery before signing. Credentials renew after 110 minutes without a successful API request. Issuance, renewal, and expiration timestamps persist; renewal never moves expiration beyond midnight Eastern. OAuth status includes optional `expiresAt` and `recoveryStatus` fields. Pending browser authorization exists only in memory and must be restarted after process replacement.
+
+[E*TRADE's documented default access-token expiration](https://apisb.etrade.com/docs/api/authorization/renew_access_token.html) is **midnight US Eastern**, including daylight-saving transitions. Persistence preserves usable credentials and does not eliminate daily reauthorization. Definitive OAuth token expiration/rejection/revocation clears local credentials; an unspecified authorization failure does not imply expiration. Confirmed remote revocation clears in-memory credentials before deleting the file. A deletion failure reports failure explicitly and leaves the running process unauthenticated. Fix storage permissions and remove the stale credential file before restarting. Normal shutdown preserves credentials.
+
+## Validation
+
+```bash
+dotnet build -c Release
+dotnet test -c Release
+python3 tests/verify_stdio.py src/OpenEtradeMcp.Server/bin/Release/net10.0/OpenEtradeMcp.Server.dll
 ```
 
-### How It Works
+The automated tests use mocked E*TRADE responses and an injectable clock. They cover registration, outbound trade blocking, encryption/tampering, key/environment binding, permissions, interrupted-write remnants, a competing process lock, authentication followed by a fresh instance and signed requests, inactivity recovery, transient failures, invalidation, midnight/DST, and persistence/revocation failures. Unix lock tests require `python3`.
 
-When enabled, the following tools require explicit user confirmation before execution:
-- `placeOrder` - New order placement
-- `cancelOrder` - Order cancellation
-- `placeChangeOrder` - Order modification
+Manual deployment checks (require your own E*TRADE authorization):
 
-**With MCP elicitation support** (Claude Code 2.1.76+, and other clients that support `elicitation/create`):
-
-The server sends a native confirmation dialog directly to the client. The user sees a form with full order details (symbol, action, quantity, price, account) and must check a confirmation box before the order executes. This is a **mechanical gate** — the LLM cannot bypass, intercept, or auto-confirm it.
-
-For `cancelOrder`, the server automatically fetches the order details from E*TRADE so the user can see exactly what they are canceling (symbol, action, quantity, status).
-
-Account identifiers are resolved to human-friendly display format (masked account number + description).
-
-**Without MCP elicitation support** (fallback):
-
-For clients that do not support MCP elicitation, the server uses a token-based fallback. The tool returns order details and a confirmation token. The AI agent is instructed to present the details to the user and, if confirmed, re-call the tool with the token. Note: this fallback relies on the AI agent to present the confirmation, which is a weaker guarantee than native elicitation.
-
-### Configuration Options
-
-| Environment Variable | Default | Description |
-|---------------------|---------|-------------|
-| `ETRADE_EnableOrderConfirmation` | `false` | Enable order confirmation gate. When `false`, all tools execute without confirmation (existing behavior). |
-| `ETRADE_GuardedTools` | `placeOrder,cancelOrder,placeChangeOrder` | Comma-separated list of tool names that require confirmation. |
-| `ETRADE_ConfirmationTimeoutSeconds` | `300` | How long (seconds) a fallback confirmation token remains valid. |
-
-### Example Dialog
-
-```
-══════════════════════════════════════════
-  ORDER PLACEMENT — CONFIRMATION REQUIRED
-══════════════════════════════════════════
-
-  account: ****1234 - Individual - (My Trading Acct) - [MARGIN]
-  orderType: EQ
-  order:
-    priceType: MARKET
-    orderTerm: GOOD_FOR_DAY
-    instrument:
-      orderAction: SELL_SHORT
-      quantity: 50
-      symbol: CPT
-
-══════════════════════════════════════════
-  Review details above. Check confirm box.
-══════════════════════════════════════════
-
-  > confirm: [ ]
-      I have reviewed the order details and approve execution
-
-  Accept    Decline
-```
+1. Authenticate, verify OAuth status and a read request, then stop the process before midnight Eastern.
+2. Recreate the container with the same volume, external key, consumer credentials, and environment. Verify startup renewal, authenticated status, and another read without a new verifier.
+3. Reboot the host before midnight and verify the same behavior after restart. Stop the first process and confirm a replacement can acquire the store lock; a concurrent process must fail startup.
+4. Repeat across midnight: expired credentials must be removed and a new OAuth flow required. A pending authorization must not survive a restart.
 
 ## Security Notes
 
-- **Never commit credentials** - Use environment variables for your consumer key/secret
-- **Memory-only tokens** - Access tokens are stored in memory and not persisted to disk
-- **Use sandbox first** - Test with sandbox environment before using production credentials
-- **Enable order confirmation** - Set `ETRADE_EnableOrderConfirmation=true` to prevent unintended order execution by AI agents. This is **strongly recommended** for production use.
+- Keep consumer credentials and the external encryption key private.
+- Order execution, cancellation, and modification tools are permanently removed; no configuration override enables trading. Previews do not submit trades.
+- OAuth tool errors and startup diagnostics omit provider bodies, tokens, secrets, and stack traces.
 
 ## Troubleshooting
 

@@ -1,183 +1,252 @@
-using System;
-using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text.Json;
+using System.Web;
 using OpenApiMcpNet;
 
 namespace OpenEtradeMcp;
 
-/// <summary>
-/// E*TRADE OAuth 1.0a authentication handler.
-/// Implements the E*TRADE specific OAuth 1.0a flow with request token, authorization, and access token steps.
-/// </summary>
-public class EtradeOAuth1AuthenticationHandler : OAuth1AuthenticationHandler
+public sealed class EtradeOAuthSession
 {
-    private readonly HttpClient _httpClient;
-    private readonly ETradeConfig _etradeConfig;
+    internal string? RequestToken { get; set; }
+    internal string? RequestTokenSecret { get; set; }
+    public string? AuthorizationUrl { get; internal set; }
+    public bool HasPendingAuthorization => RequestToken != null;
+    public DateTimeOffset? ExpiresAt { get; internal set; }
+    public string RecoveryStatus { get; internal set; } = "unauthenticated";
+    public bool IsAuthenticated => RecoveryStatus == "ready" && ExpiresAt > Clock.GetUtcNow();
+    internal TimeProvider Clock { get; set; } = TimeProvider.System;
+}
 
-    // E*TRADE API endpoints
-    private readonly string _accessTokenUrl;
-    private readonly string _renewAccessTokenUrl;
-    private readonly string _revokeAccessTokenUrl;
-    private readonly string _authorizationUrl = "https://us.etrade.com/e/t/etws/authorize?key={0}&token={1}";
+// One synchronized credential holder supplies both status and request signing.
+public sealed class EtradeOAuth1AuthenticationHandler : IAuthenticationHandler
+{
+    private readonly SignatureSupport signer;
+    private readonly HttpClient client;
+    private readonly ETradeConfig config;
+    private readonly ITokenStore store;
+    private readonly TimeProvider clock;
+    private readonly SemaphoreSlim gate = new(1, 1);
+    private OAuthCredentials? credentials;
+    private DateTimeOffset lastActivity;
+    public EtradeOAuthSession Session { get; }
+    public bool IsAuthenticated => Session.IsAuthenticated;
 
-    /// <summary>
-    /// Creates an E*TRADE OAuth 1.0a authentication handler.
-    /// </summary>
-    /// <param name="httpClient">The HTTP client used to make OAuth requests.</param>
-    /// <param name="etradeConfig">The E*TRADE configuration settings.</param>
-    public EtradeOAuth1AuthenticationHandler(
-        HttpClient httpClient,
-        ETradeConfig etradeConfig)
-        : base(httpClient, $"{(etradeConfig ?? throw new ArgumentNullException(nameof(etradeConfig))).AuthorizationBaseUrl}/oauth/request_token", $"{etradeConfig.AuthorizationBaseUrl}/oauth/access_token", etradeConfig.ConsumerKey, etradeConfig.ConsumerSecret, etradeConfig.SignatureMethod)
+    public EtradeOAuth1AuthenticationHandler(HttpClient client, ETradeConfig config, ITokenStore store,
+        EtradeOAuthSession? session = null, TimeProvider? clock = null)
     {
-        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _etradeConfig = etradeConfig ?? throw new ArgumentNullException(nameof(etradeConfig));
-        
-        var baseUrl = etradeConfig.AuthorizationBaseUrl;
-
-        _accessTokenUrl = $"{baseUrl}/oauth/access_token";
-        _renewAccessTokenUrl = $"{baseUrl}/oauth/renew_access_token";
-        _revokeAccessTokenUrl = $"{baseUrl}/oauth/revoke_access_token";
+        signer = new SignatureSupport(client, config);
+        this.client = client;
+        this.config = config;
+        this.store = store;
+        this.clock = clock ?? TimeProvider.System;
+        Session = session ?? new();
+        Session.Clock = this.clock;
     }
 
-    /// <summary>
-    /// Generates the authorization URL for the given request token.
-    /// The user should visit this URL to authorize the application and obtain the verifier code.
-    /// </summary>
-    /// <param name="requestToken">The request token obtained from GetRequestTokenPublicAsync.</param>
-    /// <returns>The authorization URL.</returns>
-    public string GetAuthorizationUrl(string requestToken)
+    private void Set(OAuthCredentials? value, string status)
     {
-        return string.Format(_authorizationUrl, _etradeConfig.ConsumerKey, requestToken);
+        credentials = value;
+        Session.ExpiresAt = value?.ExpiresAt;
+        Session.RecoveryStatus = status;
     }
 
-    /// <summary>
-    /// Step 1: Gets a request token from E*TRADE.
-    /// This is the first step in the OAuth 1.0a flow.
-    /// </summary>
-    /// <returns>A tuple containing the request token and request token secret.</returns>
-    public Task<(string token, string tokenSecret)> GetRequestTokenPublicAsync()
+    public static DateTimeOffset MidnightEastern(DateTimeOffset issued)
     {
-        return GetRequestTokenInternalAsync();
+        var eastern = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
+        var nextDate = TimeZoneInfo.ConvertTime(issued, eastern).Date.AddDays(1);
+        return new DateTimeOffset(TimeZoneInfo.ConvertTimeToUtc(nextDate, eastern), TimeSpan.Zero);
     }
 
-    internal new void SetAuthenticationResult(string accessToken, string accessTokenSecret)
+    public async Task InitializeAsync()
     {
-        base.SetAuthenticationResult(accessToken, accessTokenSecret);
-    }
-
-    protected override async Task<(string token, string tokenSecret)> GetAccessTokenAsync(string requestToken, string requestTokenSecret)
-    {
-        var verifier = await GetVerifierAsync(requestToken);
-        return await CompleteAuthenticationAsync(verifier, requestToken, requestTokenSecret);
-    }
-
-    protected virtual Task<string> GetVerifierAsync(string requestToken)
-    {
-        throw new NotSupportedException("Automated verifier retrieval not supported. Use MCP tools to guide the user through authorization.");
-    }
-
-    /// <summary>
-    /// Step 3: Completes authentication by exchanging the verifier code for an access token.
-    /// Call this after the user has authorized the application and obtained a verifier code.
-    /// </summary>
-    /// <param name="verifier">The verifier code obtained from the authorization callback.</param>
-    /// <param name="requestToken">The request token obtained from GetRequestTokenAsync.</param>
-    /// <param name="requestTokenSecret">The request token secret obtained from GetRequestTokenAsync.</param>
-    public async Task<(string AccessToken, string AccessTokenSecret)> CompleteAuthenticationAsync(string verifier, string requestToken, string requestTokenSecret)
-    {
-        if (string.IsNullOrEmpty(requestToken) || string.IsNullOrEmpty(requestTokenSecret))
+        await gate.WaitAsync();
+        try
         {
-            throw new InvalidOperationException("Request token not obtained. Call GetRequestTokenAsync first.");
+            Set(await store.LoadAsync(), "recovering");
+            if (credentials == null) { Set(null, "unauthenticated"); return; }
+            if (await ExpireAsync()) return;
+            try { await RenewCoreAsync(); }
+            catch (OAuthProviderException ex) when (ex.InvalidToken) { /* Definitive invalidation already cleared and deleted. */ }
+            catch (OAuthProviderException ex) when (!ex.InvalidToken) { Session.RecoveryStatus = "recovery_required"; }
+            catch (HttpRequestException) { Session.RecoveryStatus = "recovery_required"; }
+            catch (TaskCanceledException) { Session.RecoveryStatus = "recovery_required"; }
         }
-
-        var timestamp = GetTimestamp();
-        var nonce = GetNonce();
-
-        var oauthParams = GetOAuthParameters(requestToken);
-        oauthParams["oauth_verifier"] = verifier;
-
-        var signature = GenerateSignature("GET", new Uri(_accessTokenUrl), oauthParams, requestTokenSecret);
-        oauthParams[KeyOAuthSignature] = signature;
-
-        var request = new HttpRequestMessage(HttpMethod.Get, _accessTokenUrl);
-        request.Headers.Authorization = new AuthenticationHeaderValue("OAuth", BuildAuthorizationHeader(oauthParams));
-
-        var response = await _httpClient.SendAsync(request);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            throw new HttpRequestException(
-                $"Failed to obtain E*TRADE access token. Status: {response.StatusCode}, Response: {errorContent}");
-        }
-
-        var responseContent = await response.Content.ReadAsStringAsync();
-        return ParseTokenResponse(responseContent);
+        finally { gate.Release(); }
     }
 
-    /// <summary>
-    /// Renews the current access token.
-    /// E*TRADE access tokens expire at midnight US Eastern time and must be renewed.
-    /// </summary>
-    public async Task RenewAccessTokenAsync(string token, string tokenSecret)
+    private async Task<bool> ExpireAsync()
     {
-        if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(tokenSecret))
-        {
-            throw new InvalidOperationException("No access token to renew. Complete authentication first.");
-        }
-
-        var timestamp = GetTimestamp();
-        var nonce = GetNonce();
-
-        var oauthParams = GetOAuthParameters(token);
-
-        var signature = GenerateSignature("GET", new Uri(_renewAccessTokenUrl), oauthParams, tokenSecret);
-        oauthParams[KeyOAuthSignature] = signature;
-
-        var request = new HttpRequestMessage(HttpMethod.Get, _renewAccessTokenUrl);
-        request.Headers.Authorization = new AuthenticationHeaderValue("OAuth", BuildAuthorizationHeader(oauthParams));
-
-        var response = await _httpClient.SendAsync(request);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            throw new HttpRequestException(
-                $"Failed to renew E*TRADE access token. Status: {response.StatusCode}, Response: {errorContent}");
-        }
-
-        // Token renewal successful - the same token remains valid
+        if (credentials == null || clock.GetUtcNow() < credentials.ExpiresAt) return false;
+        Set(null, "expired");
+        await store.DeleteAsync();
+        return true;
     }
 
-    /// <summary>
-    /// Revokes the current access token.
-    /// </summary>
-    public async Task RevokeAccessTokenAsync(string token, string tokenSecret)
+    public string GetAuthorizationUrl(string token) =>
+        $"https://us.etrade.com/e/t/etws/authorize?key={Uri.EscapeDataString(config.ConsumerKey)}&token={Uri.EscapeDataString(token)}";
+
+    public async Task<string> StartAsync()
     {
-        if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(tokenSecret))
+        await gate.WaitAsync();
+        try
         {
-            throw new InvalidOperationException("No access token to revoke.");
+            var result = await OAuthAsync("request_token", null, "", new() { ["oauth_callback"] = config.CallbackUrl });
+            var pair = ParseSafe(result);
+            Session.RequestToken = pair.Token;
+            Session.RequestTokenSecret = pair.Secret;
+            return Session.AuthorizationUrl = GetAuthorizationUrl(pair.Token);
         }
-
-        var timestamp = GetTimestamp();
-        var nonce = GetNonce();
-
-        var oauthParams = GetOAuthParameters(token);
-
-        var signature = GenerateSignature("GET", new Uri(_revokeAccessTokenUrl), oauthParams, tokenSecret);
-        oauthParams[KeyOAuthSignature] = signature;
-
-        var request = new HttpRequestMessage(HttpMethod.Get, _revokeAccessTokenUrl);
-        request.Headers.Authorization = new AuthenticationHeaderValue("OAuth", BuildAuthorizationHeader(oauthParams));
-
-        var response = await _httpClient.SendAsync(request);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            throw new HttpRequestException(
-                $"Failed to revoke E*TRADE access token. Status: {response.StatusCode}, Response: {errorContent}");
-        }
+        finally { gate.Release(); }
     }
+
+    private static (string Token, string Secret) ParseSafe(string result)
+    {
+        var values = HttpUtility.ParseQueryString(result);
+        if (string.IsNullOrEmpty(values["oauth_token"]) || string.IsNullOrEmpty(values["oauth_token_secret"]))
+            throw new EtradeOperationException("Provider returned an invalid OAuth response.");
+        return (values["oauth_token"]!, values["oauth_token_secret"]!);
+    }
+
+    public async Task CompleteAsync(string verifier)
+    {
+        await gate.WaitAsync();
+        try
+        {
+            if (Session.RequestToken == null) throw new EtradeOperationException("OAuth flow not started. Please call etrade_oauth_start first.");
+            if (string.IsNullOrWhiteSpace(verifier)) throw new EtradeOperationException("Verifier code is required.");
+            var issued = clock.GetUtcNow();
+            var pair = ParseSafe(await OAuthAsync("access_token", Session.RequestToken, Session.RequestTokenSecret!,
+                new() { ["oauth_verifier"] = verifier.Trim() }));
+            var value = new OAuthCredentials(pair.Token, pair.Secret, issued, issued, MidnightEastern(issued));
+            if (clock.GetUtcNow() >= value.ExpiresAt) throw new EtradeOperationException("Authorization expired. Reauthorize.");
+            await store.SaveAsync(value);
+            Set(value, "ready");
+            lastActivity = clock.GetUtcNow();
+            Session.RequestToken = Session.RequestTokenSecret = Session.AuthorizationUrl = null;
+        }
+        finally { gate.Release(); }
+    }
+
+    private async Task RenewCoreAsync()
+    {
+        if (await ExpireAsync() || credentials == null) throw new EtradeOperationException("Not authenticated. Reauthorize using OAuth tools.");
+        Session.RecoveryStatus = "recovering";
+        try
+        {
+            await OAuthAsync("renew_access_token", credentials.Token, credentials.Secret);
+            if (await ExpireAsync()) throw new EtradeOperationException("Authorization expired. Reauthorize.");
+            var renewed = credentials with { RenewedAt = clock.GetUtcNow() };
+            await store.SaveAsync(renewed);
+            Set(renewed, "ready");
+            lastActivity = clock.GetUtcNow();
+        }
+        catch (OAuthProviderException ex) when (ex.InvalidToken)
+        {
+            Set(null, "invalidated");
+            await store.DeleteAsync();
+            throw;
+        }
+        catch { if (credentials != null) Session.RecoveryStatus = "recovery_required"; throw; }
+    }
+
+    public async Task RenewAsync()
+    {
+        await gate.WaitAsync();
+        try { await RenewCoreAsync(); }
+        finally { gate.Release(); }
+    }
+
+    public async Task RevokeAsync()
+    {
+        await gate.WaitAsync();
+        try
+        {
+            if (credentials == null) throw new EtradeOperationException("Not authenticated. Nothing to revoke.");
+            try { await OAuthAsync("revoke_access_token", credentials.Token, credentials.Secret); }
+            catch (OAuthProviderException ex) when (ex.InvalidToken)
+            {
+                Set(null, "invalidated");
+                await store.DeleteAsync();
+                throw;
+            }
+            Set(null, "unauthenticated");
+            Session.RequestToken = Session.RequestTokenSecret = Session.AuthorizationUrl = null;
+            await store.DeleteAsync();
+        }
+        finally { gate.Release(); }
+    }
+
+    public Task AuthenticateAsync() => RenewAsync();
+    public void AuthenticateRequest(HttpRequestMessage request, IEnumerable<KeyValuePair<string, string>> queryParameters,
+        IEnumerable<KeyValuePair<string, JsonElement>> bodyParameters) { /* Signed after recovery in outbound guard. */ }
+
+    public async Task<HttpResponseMessage> SendBusinessAsync(HttpRequestMessage request, Func<Task<HttpResponseMessage>> send)
+    {
+        await gate.WaitAsync();
+        try
+        {
+            if (await ExpireAsync() || credentials == null) throw new EtradeOperationException("Not authenticated. Reauthorize using OAuth tools.");
+            if (!Session.IsAuthenticated || clock.GetUtcNow() - lastActivity >= TimeSpan.FromMinutes(110)) await RenewCoreAsync();
+            var parameters = signer.Parameters(credentials!.Token);
+            parameters["oauth_timestamp"] = clock.GetUtcNow().ToUnixTimeSeconds().ToString();
+            var all = new SortedDictionary<string, string>(parameters);
+            var query = HttpUtility.ParseQueryString(request.RequestUri!.Query);
+            foreach (string name in query.AllKeys.Where(k => k != null)!) all[name] = query[name]!;
+            parameters["oauth_signature"] = signer.Sign(request.Method.Method, request.RequestUri, all, credentials.Secret);
+            request.Headers.Authorization = new AuthenticationHeaderValue("OAuth", signer.Header(parameters));
+            var response = await send();
+            if (response.IsSuccessStatusCode) lastActivity = clock.GetUtcNow();
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                try
+                {
+                    var body = await response.Content.ReadAsStringAsync();
+                    if (IsInvalidToken(body)) { Set(null, "invalidated"); await store.DeleteAsync(); }
+                    else Session.RecoveryStatus = "recovery_required";
+                }
+                finally { response.Dispose(); }
+                throw new EtradeOperationException("Provider rejected authorization. Check OAuth status.");
+            }
+            return response;
+        }
+        finally { gate.Release(); }
+    }
+
+    private static bool IsInvalidToken(string body)
+    {
+        var problem = HttpUtility.ParseQueryString(body)["oauth_problem"];
+        return problem is "token_expired" or "token_rejected" or "token_revoked";
+    }
+
+    private async Task<string> OAuthAsync(string endpoint, string? token, string secret, Dictionary<string, string>? extra = null)
+    {
+        var method = endpoint == "request_token" ? HttpMethod.Post : HttpMethod.Get;
+        var uri = new Uri($"https://api.etrade.com/oauth/{endpoint}");
+        var parameters = signer.Parameters(token);
+        parameters["oauth_timestamp"] = clock.GetUtcNow().ToUnixTimeSeconds().ToString();
+        if (extra != null) foreach (var pair in extra) parameters[pair.Key] = pair.Value;
+        parameters["oauth_signature"] = signer.Sign(method.Method, uri, parameters, secret);
+        using var request = new HttpRequestMessage(method, uri);
+        request.Headers.Authorization = new AuthenticationHeaderValue("OAuth", signer.Header(parameters));
+        using var response = await client.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode) throw new OAuthProviderException(IsInvalidToken(body));
+        return body;
+    }
+    // Keep the dependency's cached authentication state unreachable. Only signing helpers are exposed.
+    private sealed class SignatureSupport(HttpClient client, ETradeConfig config)
+        : OAuth1AuthenticationHandler(client, "https://api.etrade.com/oauth/request_token",
+            "https://api.etrade.com/oauth/access_token", config.ConsumerKey, config.ConsumerSecret, config.SignatureMethod)
+    {
+        public SortedDictionary<string, string> Parameters(string? token) => GetOAuthParameters(token);
+        public string Sign(string method, Uri uri, SortedDictionary<string, string> parameters, string secret) =>
+            GenerateSignature(method, uri, parameters, secret);
+        public string Header(IDictionary<string, string> parameters) => BuildAuthorizationHeader(parameters);
+    }
+
+}
+
+public sealed class OAuthProviderException(bool invalidToken) : Exception("OAuth provider request failed. Check OAuth status and retry.")
+{
+    public bool InvalidToken { get; } = invalidToken;
 }
