@@ -53,17 +53,23 @@ try
     Console.Error.WriteLine("logPath: " + logPath);
 
     builder.Services.AddSerilog(new LoggerConfiguration()
-        .MinimumLevel.Debug()
+        .MinimumLevel.Warning()
         .WriteTo.File(logPath)
         .CreateLogger());
 
     Console.Error.WriteLine("Configuring MCP server...");
 
-    // Create shared HttpClient and session
-    var httpClient = new HttpClient { BaseAddress = new Uri(etradeConfig.BaseUrl) };
-    var authHandler = new EtradeOAuth1AuthenticationHandler(httpClient, etradeConfig);
-    var oauthSession = new EtradeOAuthSession();
-    var oauthTools = new EtradeOAuthMcpTools(authHandler, oauthSession, etradeConfig);
+    using var tokenStore = new EncryptedFileTokenStore(etradeConfig);
+    using var oauthClient = new HttpClient(new ReadOnlyGuard(etradeConfig, true)
+        { InnerHandler = new HttpClientHandler { AllowAutoRedirect = false } })
+        { Timeout = TimeSpan.FromSeconds(etradeConfig.TimeoutSeconds) };
+    var authHandler = new EtradeOAuth1AuthenticationHandler(oauthClient, etradeConfig, tokenStore);
+    await authHandler.InitializeAsync();
+    using var httpClient = new HttpClient(new ReadOnlyGuard(etradeConfig, false, authHandler)
+        { InnerHandler = new HttpClientHandler { AllowAutoRedirect = false } })
+        { BaseAddress = new Uri(etradeConfig.BaseUrl), Timeout = TimeSpan.FromSeconds(etradeConfig.TimeoutSeconds) };
+    var oauthSession = authHandler.Session;
+    var oauthTools = new EtradeOAuthMcpTools(authHandler);
 
     builder.Services
         .AddMcpServer()
@@ -71,10 +77,7 @@ try
         // Register E*TRADE OAuth tools for interactive authentication
         .WithTools(oauthTools)
         // Register API tools from OpenAPI spec
-        .WithToolsFromOpenApi(openApiSpec, etradeConfig.BaseUrl)
-        // Add confirmation gate for dangerous operations (placeOrder, cancelOrder, placeChangeOrder)
-        // Enabled via ETRADE_EnableOrderConfirmation=true (default: disabled, no behavior change)
-        .WithOrderConfirmation(etradeConfig)
+        .WithToolsFromOpenApi(ReadOnlyPolicy.Filter(openApiSpec), etradeConfig.BaseUrl)
         .Services
         .AddSingleton(etradeConfig)
         .AddSingleton(httpClient)
@@ -91,9 +94,8 @@ try
 
     return 0;
 }
-catch (Exception ex)
+catch (Exception)
 {
-    Console.Error.WriteLine($"E*TRADE MCP Server terminated unexpectedly: {ex.Message}");
-    Console.Error.WriteLine($"Stack trace: {ex.StackTrace}");
+    Console.Error.WriteLine("E*TRADE MCP startup failed. Check storage permissions, key, lock, and configuration; no credentials were exposed.");
     return 1;
 }
