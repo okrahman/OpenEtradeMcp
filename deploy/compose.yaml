@@ -1,0 +1,312 @@
+name: etrade
+services:
+  ingress:
+    image: ${INGRESS_IMAGE:?Set a digest-pinned image}
+    user: 10001:10001
+    read_only: true
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: '1'
+      net.ipv6.conf.default.disable_ipv6: '1'
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 384m
+    cpus: '0.5'
+    restart: on-failure:3
+    dns:
+    - 127.0.0.1
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m,uid=10001,gid=10001
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+      ingress_mcp:
+        ipv4_address: 172.30.10.2
+      ingress_auth:
+        ipv4_address: 172.30.11.2
+      public:
+        ipv4_address: 172.30.19.2
+        gw_priority: 1
+        priority: 1000
+    volumes:
+    - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    - ${SECRETS_ROOT}/ingress/:/run/secrets:ro
+    ports:
+    - 443:8443
+    entrypoint:
+    - nginx
+    - -g
+    - daemon off;
+  mcp:
+    image: ${MCP_IMAGE:?Set a digest-pinned image}
+    user: 10001:10001
+    read_only: true
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: '1'
+      net.ipv6.conf.default.disable_ipv6: '1'
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 384m
+    cpus: '0.5'
+    restart: on-failure:3
+    dns:
+    - 127.0.0.1
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m,uid=10001,gid=10001
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+      ingress_mcp:
+        ipv4_address: 172.30.10.3
+      mcp_auth:
+        ipv4_address: 172.30.12.2
+      mcp_gateway:
+        ipv4_address: 172.30.13.2
+    environment:
+      Tls__Certificate: /run/secrets/service.pfx
+      Tls__Ca: /run/secrets/ca.crt
+      Issuer: https://${DOMAIN:?Set domain}
+      Resource: https://${DOMAIN}/mcp
+      AuthorizationUrl: https://authorization:8443
+      GatewayUrl: https://gateway:8443
+      PublicOrigin: https://${DOMAIN}
+    volumes:
+    - ${SECRETS_ROOT:?Set secrets root}/mcp/:/run/secrets:ro
+  authorization:
+    image: ${AUTHORIZATION_IMAGE:?Set a digest-pinned image}
+    user: 10001:10001
+    read_only: true
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: '1'
+      net.ipv6.conf.default.disable_ipv6: '1'
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 384m
+    cpus: '0.5'
+    restart: on-failure:3
+    dns:
+    - 127.0.0.1
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m,uid=10001,gid=10001
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+      ingress_auth:
+        ipv4_address: 172.30.11.3
+      mcp_auth:
+        ipv4_address: 172.30.12.3
+      auth_gateway:
+        ipv4_address: 172.30.14.2
+      auth_proxy:
+        ipv4_address: 172.30.16.2
+    environment:
+      Tls__Certificate: /run/secrets/service.pfx
+      Tls__Ca: /run/secrets/ca.crt
+      Issuer: https://${DOMAIN:?Set domain}
+      Resource: https://${DOMAIN}/mcp
+      StateFile: /state/authorization.db
+      DataProtectionDirectory: /state/dataprotection
+      TokenSigningCertificate: /run/secrets/token-signing.pfx
+      TokenEncryptionCertificate: /run/secrets/token-encryption.pfx
+      AssertionPrivateKey: /run/secrets/assertion-private.pem
+      GoogleClientId: ${GOOGLE_CLIENT_ID:?Set Google OAuth client ID}
+      GoogleClientSecretFile: /run/secrets/google-client-secret
+      OwnerSubject: ${OWNER_SUBJECT:?Set owner subject}
+      GatewayUrl: https://gateway:8443
+      IdentityFetchUrl: https://identity-proxy:3128
+    volumes:
+    - ${SECRETS_ROOT:?Set secrets root}/authorization/:/run/secrets:ro
+    - ${STATE_ROOT:?Set state root}/authorization:/state:rw
+    - ./authorization-settings.json:/app/appsettings.Production.json:ro
+  gateway:
+    image: ${GATEWAY_IMAGE:?Set a digest-pinned image}
+    user: 10001:10001
+    read_only: true
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: '1'
+      net.ipv6.conf.default.disable_ipv6: '1'
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 384m
+    cpus: '0.5'
+    restart: on-failure:3
+    dns:
+    - 127.0.0.1
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m,uid=10001,gid=10001
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+      mcp_gateway:
+        ipv4_address: 172.30.13.3
+      auth_gateway:
+        ipv4_address: 172.30.14.3
+      gateway_proxy:
+        ipv4_address: 172.30.15.2
+    environment:
+      Tls__Certificate: /run/secrets/service.pfx
+      Tls__Ca: /run/secrets/ca.crt
+      Issuer: https://${DOMAIN:?Set domain}
+      Resource: https://${DOMAIN}/mcp
+      AssertionPublicKey: /run/secrets/assertion-public.pem
+      AuthorizationUrl: https://authorization:8443
+      BrokerageProxy: http://brokerage-proxy:3128
+      TokenDirectory: /tokens
+      TokenKeyFile: /run/secrets/token-key
+      ConsumerKeyFile: /run/secrets/consumer-key
+      ConsumerSecretFile: /run/secrets/consumer-secret
+    volumes:
+    - ${SECRETS_ROOT:?Set secrets root}/gateway/:/run/secrets:ro
+    - ${STATE_ROOT}/gateway:/tokens:rw
+  brokerage-proxy:
+    image: ${BROKERAGE_PROXY_IMAGE:?Set a digest-pinned image}
+    user: 10001:10001
+    read_only: true
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: '1'
+      net.ipv6.conf.default.disable_ipv6: '1'
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 384m
+    cpus: '0.5'
+    restart: on-failure:3
+    dns:
+    - 8.8.8.8
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m,uid=10001,gid=10001
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+      gateway_proxy:
+        ipv4_address: 172.30.15.3
+      brokerage_egress:
+        ipv4_address: 172.30.17.2
+    environment:
+      ALLOWED_HOSTS: api.etrade.com
+      MODE: brokerage
+    volumes:
+    - ${SECRETS_ROOT}/brokerage-proxy/:/run/secrets:ro
+  identity-proxy:
+    image: ${IDENTITY_PROXY_IMAGE:?Set a digest-pinned image}
+    user: 10001:10001
+    read_only: true
+    sysctls:
+      net.ipv6.conf.all.disable_ipv6: '1'
+      net.ipv6.conf.default.disable_ipv6: '1'
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 384m
+    cpus: '0.5'
+    restart: on-failure:3
+    dns:
+    - 8.8.8.8
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m,uid=10001,gid=10001
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+    networks:
+      auth_proxy:
+        ipv4_address: 172.30.16.3
+      identity_egress:
+        ipv4_address: 172.30.18.2
+    environment:
+      MODE: identity
+    volumes:
+    - ${SECRETS_ROOT}/identity-proxy/:/run/secrets:ro
+    - ./approved-urls.json:/app/approved-urls.json:ro
+networks:
+  ingress_mcp:
+    internal: true
+    enable_ipv6: false
+    ipam:
+      config:
+      - subnet: 172.30.10.0/24
+  ingress_auth:
+    internal: true
+    enable_ipv6: false
+    ipam:
+      config:
+      - subnet: 172.30.11.0/24
+  mcp_auth:
+    internal: true
+    enable_ipv6: false
+    ipam:
+      config:
+      - subnet: 172.30.12.0/24
+  mcp_gateway:
+    internal: true
+    enable_ipv6: false
+    ipam:
+      config:
+      - subnet: 172.30.13.0/24
+  auth_gateway:
+    internal: true
+    enable_ipv6: false
+    ipam:
+      config:
+      - subnet: 172.30.14.0/24
+  gateway_proxy:
+    internal: true
+    enable_ipv6: false
+    ipam:
+      config:
+      - subnet: 172.30.15.0/24
+  auth_proxy:
+    internal: true
+    enable_ipv6: false
+    ipam:
+      config:
+      - subnet: 172.30.16.0/24
+  brokerage_egress:
+    internal: false
+    enable_ipv6: false
+    ipam:
+      config:
+      - subnet: 172.30.17.0/24
+  identity_egress:
+    internal: false
+    enable_ipv6: false
+    ipam:
+      config:
+      - subnet: 172.30.18.0/24
+  public:
+    internal: false
+    enable_ipv6: false
+    ipam:
+      config:
+      - subnet: 172.30.19.0/24

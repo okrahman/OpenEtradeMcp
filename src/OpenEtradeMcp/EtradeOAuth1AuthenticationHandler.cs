@@ -7,6 +7,7 @@ namespace OpenEtradeMcp;
 
 public sealed class EtradeOAuthSession
 {
+    internal DateTimeOffset? PendingUntil { get; set; }
     internal string? RequestToken { get; set; }
     internal string? RequestTokenSecret { get; set; }
     public string? AuthorizationUrl { get; internal set; }
@@ -90,8 +91,12 @@ public sealed class EtradeOAuth1AuthenticationHandler : IAuthenticationHandler
         await gate.WaitAsync();
         try
         {
+            if (Session.RequestToken != null && Session.PendingUntil > clock.GetUtcNow())
+                throw new EtradeOperationException("An owner authorization flow is already pending.");
+            Session.RequestToken = Session.RequestTokenSecret = Session.AuthorizationUrl = null;
             var result = await OAuthAsync("request_token", null, "", new() { ["oauth_callback"] = config.CallbackUrl });
             var pair = ParseSafe(result);
+            Session.PendingUntil = clock.GetUtcNow().AddMinutes(10);
             Session.RequestToken = pair.Token;
             Session.RequestTokenSecret = pair.Secret;
             return Session.AuthorizationUrl = GetAuthorizationUrl(pair.Token);
@@ -112,7 +117,11 @@ public sealed class EtradeOAuth1AuthenticationHandler : IAuthenticationHandler
         await gate.WaitAsync();
         try
         {
-            if (Session.RequestToken == null) throw new EtradeOperationException("OAuth flow not started. Please call etrade_oauth_start first.");
+            if (Session.RequestToken == null || Session.PendingUntil <= clock.GetUtcNow())
+            {
+                Session.RequestToken = Session.RequestTokenSecret = Session.AuthorizationUrl = null;
+                throw new EtradeOperationException("Owner authorization flow is absent or expired.");
+            }
             if (string.IsNullOrWhiteSpace(verifier)) throw new EtradeOperationException("Verifier code is required.");
             var issued = clock.GetUtcNow();
             var pair = ParseSafe(await OAuthAsync("access_token", Session.RequestToken, Session.RequestTokenSecret!,
@@ -129,7 +138,7 @@ public sealed class EtradeOAuth1AuthenticationHandler : IAuthenticationHandler
 
     private async Task RenewCoreAsync()
     {
-        if (await ExpireAsync() || credentials == null) throw new EtradeOperationException("Not authenticated. Reauthorize using OAuth tools.");
+        if (await ExpireAsync() || credentials == null) throw new EtradeOperationException("Owner reauthorization required.");
         Session.RecoveryStatus = "recovering";
         try
         {
@@ -176,6 +185,17 @@ public sealed class EtradeOAuth1AuthenticationHandler : IAuthenticationHandler
         finally { gate.Release(); }
     }
 
+    public async Task RefreshStatusAsync()
+    {
+        await gate.WaitAsync();
+        try
+        {
+            await ExpireAsync();
+            if (Session.PendingUntil <= clock.GetUtcNow()) Session.RequestToken = Session.RequestTokenSecret = Session.AuthorizationUrl = null;
+        }
+        finally { gate.Release(); }
+    }
+
     public Task AuthenticateAsync() => RenewAsync();
     public void AuthenticateRequest(HttpRequestMessage request, IEnumerable<KeyValuePair<string, string>> queryParameters,
         IEnumerable<KeyValuePair<string, JsonElement>> bodyParameters) { /* Signed after recovery in outbound guard. */ }
@@ -185,7 +205,7 @@ public sealed class EtradeOAuth1AuthenticationHandler : IAuthenticationHandler
         await gate.WaitAsync();
         try
         {
-            if (await ExpireAsync() || credentials == null) throw new EtradeOperationException("Not authenticated. Reauthorize using OAuth tools.");
+            if (await ExpireAsync() || credentials == null) throw new EtradeOperationException("Owner reauthorization required.");
             if (!Session.IsAuthenticated || clock.GetUtcNow() - lastActivity >= TimeSpan.FromMinutes(110)) await RenewCoreAsync();
             var parameters = signer.Parameters(credentials!.Token);
             parameters["oauth_timestamp"] = clock.GetUtcNow().ToUnixTimeSeconds().ToString();
@@ -205,7 +225,7 @@ public sealed class EtradeOAuth1AuthenticationHandler : IAuthenticationHandler
                     else Session.RecoveryStatus = "recovery_required";
                 }
                 finally { response.Dispose(); }
-                throw new EtradeOperationException("Provider rejected authorization. Check OAuth status.");
+                throw new EtradeOperationException("Owner reauthorization required.");
             }
             return response;
         }
@@ -220,7 +240,7 @@ public sealed class EtradeOAuth1AuthenticationHandler : IAuthenticationHandler
 
     private async Task<string> OAuthAsync(string endpoint, string? token, string secret, Dictionary<string, string>? extra = null)
     {
-        var method = endpoint == "request_token" ? HttpMethod.Post : HttpMethod.Get;
+        var method = HttpMethod.Get;
         var uri = new Uri($"https://api.etrade.com/oauth/{endpoint}");
         var parameters = signer.Parameters(token);
         parameters["oauth_timestamp"] = clock.GetUtcNow().ToUnixTimeSeconds().ToString();

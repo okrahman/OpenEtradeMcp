@@ -1,0 +1,10 @@
+.git
+.vscode
+.env
+**/bin
+**/obj
+**/*.pfx
+**/*.pem
+**/*.key
+deploy/secrets
+deploy/state

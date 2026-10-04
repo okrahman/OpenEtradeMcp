@@ -18,9 +18,7 @@ public static class ReadOnlyPolicy
             ["lookupProduct"] = ("GET", "/market/lookup/{search}"),
             ["getOptionChains"] = ("GET", "/market/optionchains"),
             ["getOptionExpireDates"] = ("GET", "/market/optionexpiredate"),
-            ["listOrders"] = ("GET", "/accounts/{accountIdKey}/orders"),
-            ["previewOrder"] = ("POST", "/accounts/{accountIdKey}/orders/preview"),
-            ["previewChangeOrder"] = ("PUT", "/accounts/{accountIdKey}/orders/{orderId}/change/preview")
+            ["listOrders"] = ("GET", "/accounts/{accountIdKey}/orders")
         };
 
     public static OpenApiDocument Filter(string specification)
@@ -45,11 +43,11 @@ public static class ReadOnlyPolicy
             throw new EtradeOperationException("Request blocked by read-only policy.");
         if (oauth)
         {
-            var method = uri.AbsolutePath == "/oauth/request_token" ? "POST" : "GET";
+            const string method = "GET";
             if (uri.Host == "api.etrade.com" && request.Method.Method == method &&
                 new[] { "/oauth/request_token", "/oauth/access_token", "/oauth/renew_access_token", "/oauth/revoke_access_token" }.Contains(uri.AbsolutePath)) return;
         }
-        else if (uri.Host == new Uri(config.BaseUrl).Host &&
+        else if (uri.Host == "api.etrade.com" &&
             !Uri.UnescapeDataString(uri.AbsolutePath).Contains('\\') &&
             Uri.UnescapeDataString(uri.AbsolutePath).Split('/').Length == uri.AbsolutePath.Split('/').Length)
         {

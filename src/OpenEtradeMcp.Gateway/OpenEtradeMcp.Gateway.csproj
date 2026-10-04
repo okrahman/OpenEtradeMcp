@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+<PropertyGroup><TargetFrameworks>net10.0</TargetFrameworks></PropertyGroup>
+<ItemGroup>
+<ProjectReference Include="../OpenEtradeMcp.Contracts/OpenEtradeMcp.Contracts.csproj" />
+<ProjectReference Include="../OpenEtradeMcp/OpenEtradeMcp.csproj" />
+</ItemGroup>
+</Project>

@@ -1,0 +1,7 @@
+ARG PYTHON_IMAGE
+FROM ${PYTHON_IMAGE}
+WORKDIR /app
+COPY deploy/proxy/proxy.py /app/proxy.py
+USER 10001:10001
+ENV PYTHONDONTWRITEBYTECODE=1
+ENTRYPOINT ["python3", "-I", "/app/proxy.py"]

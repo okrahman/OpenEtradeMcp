@@ -16,9 +16,9 @@ public class ETradeConfig
     public string ConsumerSecret { get; set; } = string.Empty;
 
     /// <summary>
-    /// The base URL for the E*TRADE API (production or sandbox)
+    /// The base URL for the E*TRADE API (production only)
     /// </summary>
-    public string BaseUrl => UseSandbox ? SandboxBaseUrl : ProductionBaseUrl;
+    public string BaseUrl => ProductionBaseUrl;
 
     /// <summary>
     /// The callback URL for OAuth authentication (set to "oob" for out-of-band)
@@ -33,7 +33,11 @@ public class ETradeConfig
     /// <summary>
     /// Whether to use sandbox environment
     /// </summary>
-    public bool UseSandbox { get; set; } = false;
+    public bool UseSandbox
+    {
+        get => false;
+        set { if (value) throw new EtradeOperationException("Sandbox configuration is forbidden."); }
+    }
 
     /// <summary>
     /// The OAuth signature method
@@ -48,7 +52,7 @@ public class ETradeConfig
     /// <summary>
     /// Gets the sandbox base URL
     /// </summary>
-    public static string SandboxBaseUrl => "https://apisb.etrade.com/v1";
+
 
     /// <summary>
     /// The OAuth authorization endpoint URL

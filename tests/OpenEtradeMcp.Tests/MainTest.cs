@@ -48,7 +48,7 @@ public sealed class SecurityTests
     private static OAuthCredentials Credentials => new("access", "secret", Noon, Noon, EtradeOAuth1AuthenticationHandler.MidnightEastern(Noon));
 
     [Fact]
-    public void Discovery_RegistersOnlyReadsPreviewsAndOAuth()
+    public void Discovery_RegistersExactlyTenReads()
     {
         var spec = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "etrade-api.yaml"));
         var document = ReadOnlyPolicy.Filter(spec);
@@ -63,9 +63,9 @@ public sealed class SecurityTests
         services.AddMcpServer().WithToolsFromOpenApi(document, ETradeConfig.ProductionBaseUrl);
         using var provider = services.BuildServiceProvider();
         var tools = provider.GetServices<McpServerTool>().ToArray();
-        Assert.Equal(12, tools.Length);
+        Assert.Equal(10, tools.Length);
         Assert.DoesNotContain(tools, t => new[] { "placeOrder", "cancelOrder", "placeChangeOrder" }.Contains(t.ProtocolTool.Name));
-        Assert.Equal(5, typeof(EtradeOAuthMcpTools).GetMethods().Count(m => m.GetCustomAttributes(typeof(McpServerToolAttribute), false).Length > 0));
+        Assert.Equal(0, typeof(EtradeOAuthMcpTools).GetMethods().Count(m => m.GetCustomAttributes(typeof(McpServerToolAttribute), false).Length > 0));
     }
 
     [Theory]
@@ -74,6 +74,7 @@ public sealed class SecurityTests
     [InlineData("PUT", "/v1/accounts/abc/orders/1/change/place")]
     [InlineData("DELETE", "/v1/accounts/abc/orders")]
     [InlineData("POST", "/oauth/access_token")]
+    [InlineData("POST", "/oauth/request_token")]
     [InlineData("GET", "/v1/accounts/a%2Fb/balance")]
     public async Task Guard_BlocksBeforeTransmission(string method, string path)
     {
@@ -84,14 +85,14 @@ public sealed class SecurityTests
     }
 
     [Fact]
-    public void Guard_AllowsEveryReadAndPreviewAndDedicatedOAuth()
+    public void Guard_AllowsEveryReadAndDedicatedOAuth()
     {
         foreach (var route in ReadOnlyPolicy.Operations.Values)
         {
             var path = System.Text.RegularExpressions.Regex.Replace(route.Path, "\\{[^}]+\\}", "abc");
             ReadOnlyPolicy.Validate(new(new HttpMethod(route.Method), "https://api.etrade.com/v1" + path), new(), false);
         }
-        ReadOnlyPolicy.Validate(new(HttpMethod.Post, "https://api.etrade.com/oauth/request_token"), new(), true);
+        ReadOnlyPolicy.Validate(new(HttpMethod.Get, "https://api.etrade.com/oauth/request_token"), new(), true);
         Assert.Throws<EtradeOperationException>(() => ReadOnlyPolicy.Validate(new(HttpMethod.Get, "https://evil.example/v1/accounts/list"), new(), false));
     }
 
@@ -160,8 +161,7 @@ public sealed class SecurityTests
 
     [Theory]
     [InlineData("key")]
-    [InlineData("environment")]
-    [InlineData("consumer")]
+        [InlineData("consumer")]
     [InlineData("tamper")]
     [InlineData("version")]
     [InlineData("permissions")]
@@ -174,8 +174,7 @@ public sealed class SecurityTests
         switch (change)
         {
             case "key": File.WriteAllBytes(fixture.Config.TokenKeyFile, RandomNumberGenerator.GetBytes(32)); break;
-            case "environment": fixture.Config.UseSandbox = true; break;
-            case "consumer": fixture.Config.ConsumerKey = "different"; break;
+                        case "consumer": fixture.Config.ConsumerKey = "different"; break;
             case "tamper": var json = JsonNodeFor(path); json["Tag"] = Convert.ToBase64String(new byte[16]); File.WriteAllText(path, json.ToJsonString()); break;
             case "version": File.WriteAllText(path, File.ReadAllText(path).Replace("\"Version\":1", "\"Version\":9")); break;
             case "permissions": File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.OtherRead); break;
@@ -335,6 +334,41 @@ public sealed class SecurityTests
     }
 
     [Fact]
+    public async Task StatusRefresh_ExpiresStoredAuthorizationWithoutProviderRequest()
+    {
+        var store = new FailingStore { Value = Credentials };
+        var provider = new Provider();
+        var clock = new Clock(Noon);
+        using var client = new HttpClient(provider);
+        var auth = new EtradeOAuth1AuthenticationHandler(client, new() { ConsumerKey = "fixture", ConsumerSecret = "fixture" }, store, clock: clock);
+        await auth.InitializeAsync();
+        Assert.True(auth.IsAuthenticated);
+        var calls = provider.Calls;
+        clock.Now = Credentials.ExpiresAt;
+        await auth.RefreshStatusAsync();
+        Assert.Null(store.Value);
+        Assert.False(auth.IsAuthenticated);
+        Assert.Equal("expired", auth.Session.RecoveryStatus);
+        Assert.Equal(calls, provider.Calls);
+    }
+
+    [Fact]
+    public async Task StatusRefresh_ClearsExpiredPendingOwnerFlowWithoutProviderRequest()
+    {
+        var provider = new Provider();
+        var clock = new Clock(Noon);
+        using var client = new HttpClient(provider);
+        var auth = new EtradeOAuth1AuthenticationHandler(client, new() { ConsumerKey = "fixture", ConsumerSecret = "fixture" }, new FailingStore(), clock: clock);
+        await auth.StartAsync();
+        Assert.NotNull(auth.Session.AuthorizationUrl);
+        clock.Now = Noon.AddMinutes(10);
+        await auth.RefreshStatusAsync();
+        Assert.Null(auth.Session.AuthorizationUrl);
+        await Assert.ThrowsAsync<EtradeOperationException>(() => auth.CompleteAsync("expired-verifier"));
+        Assert.Equal(1, provider.Calls);
+    }
+
+    [Fact]
     public async Task PersistenceFailure_DoesNotReportAuthenticationSuccess_RevocationFailureClearsLocally()
     {
         var store = new FailingStore { FailSave = true };
@@ -355,4 +389,14 @@ public sealed class SecurityTests
         Assert.False(auth.IsAuthenticated);
         await Assert.ThrowsAsync<EtradeOperationException>(() => auth.SendBusinessAsync(new(HttpMethod.Get, "https://api.etrade.com/v1/accounts/list"), () => throw new Exception()));
     }
+    [Fact]
+    public async Task PendingOwnerFlow_IsSerializedAndExpiresWithoutTransmission()
+    {
+        var store=new FailingStore();var provider=new Provider();using var client=new HttpClient(provider);var clock=new Clock(Noon);
+        var auth=new EtradeOAuth1AuthenticationHandler(client,new(){ConsumerKey="fixture",ConsumerSecret="fixture"},store,clock:clock);
+        await auth.StartAsync();await Assert.ThrowsAsync<EtradeOperationException>(()=>auth.StartAsync());Assert.Equal(1,provider.Calls);
+        clock.Now=Noon.AddMinutes(10);await Assert.ThrowsAsync<EtradeOperationException>(()=>auth.CompleteAsync("expired-verifier"));Assert.Equal(1,provider.Calls);
+        await auth.StartAsync();await auth.CompleteAsync("fresh-verifier");Assert.True(auth.IsAuthenticated);
+    }
+
 }

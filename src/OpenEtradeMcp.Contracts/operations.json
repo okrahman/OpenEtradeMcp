@@ -1,0 +1,765 @@
+[
+  {
+    "operation": "listAccounts",
+    "path": "/accounts/list",
+    "parameters": []
+  },
+  {
+    "operation": "getAccountBalance",
+    "path": "/accounts/{accountIdKey}/balance",
+    "parameters": [
+      {
+        "name": "accountIdKey",
+        "location": "path",
+        "required": true,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "instType",
+        "location": "query",
+        "required": true,
+        "type": "string",
+        "values": [
+          "BROKERAGE"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "accountType",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "AMMCHK",
+          "ARO",
+          "BCHK",
+          "BENFIRA",
+          "BENFROTHIRA",
+          "BENF_ESTATE_IRA",
+          "BENF_MINOR_IRA",
+          "BENF_ROTH_ESTATE_IRA",
+          "BENF_ROTH_MINOR_IRA",
+          "BENF_ROTH_TRUST_IRA",
+          "BENF_TRUST_IRA",
+          "BRKCD",
+          "BROKER",
+          "CASH",
+          "C_CORP",
+          "CONTRIBUTORY",
+          "COVERDELL_ESA",
+          "CONVERSION_ROTH_IRA",
+          "CREDITCARD",
+          "COMM_PROP",
+          "CONSERVATOR",
+          "CORPORATION",
+          "CSA",
+          "CUSTODIAL",
+          "DVP",
+          "ESTATE",
+          "EMPCHK",
+          "EMPMMCA",
+          "ETCHK",
+          "ETMMCHK",
+          "HEIL",
+          "HELOC",
+          "INDCHK",
+          "INDIVIDUAL",
+          "INDIVIDUAL_K",
+          "INVCLUB",
+          "INVCLUB_C_CORP",
+          "INVCLUB_LLC_C_CORP",
+          "INVCLUB_LLC_PARTNERSHIP",
+          "INVCLUB_LLC_S_CORP",
+          "INVCLUB_PARTNERSHIP",
+          "INVCLUB_S_CORP",
+          "IRA",
+          "IRA_ROLLOVER",
+          "JTBE",
+          "JTIC",
+          "JTWROS",
+          "LLC_C_CORP",
+          "LLC_PARTNERSHIP",
+          "LLC_S_CORP",
+          "LLP",
+          "LLP_C_CORP",
+          "LLP_S_CORP",
+          "MARGIN",
+          "MONEY_PURCHASE",
+          "NONPROFIT",
+          "OTHER",
+          "PARTNER",
+          "PARTNERSHIP",
+          "PARTNERSHIP_C_CORP",
+          "PARTNERSHIP_S_CORP",
+          "PDT_ACCOUNT",
+          "PM_ACCOUNT",
+          "PROFIT_SHARING",
+          "PROPRIETARY",
+          "REGUG",
+          "ROTH",
+          "ROTH_CONVERSION",
+          "ROTH_IRA",
+          "S_CORP",
+          "SEP_IRA",
+          "SIMPLE_IRA",
+          "TIC",
+          "TRUST",
+          "UGMA",
+          "UTMA"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "realTimeNAV",
+        "location": "query",
+        "required": false,
+        "type": "boolean",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      }
+    ]
+  },
+  {
+    "operation": "getPortfolio",
+    "path": "/accounts/{accountIdKey}/portfolio",
+    "parameters": [
+      {
+        "name": "accountIdKey",
+        "location": "path",
+        "required": true,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "count",
+        "location": "query",
+        "required": false,
+        "type": "integer",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "sortBy",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "SYMBOL",
+          "TYPE_NAME",
+          "EXCHANGE_NAME",
+          "CURRENCY",
+          "QUANTITY",
+          "LONG_OR_SHORT",
+          "DATE_ACQUIRED",
+          "PRICEPAID",
+          "TOTAL_GAIN",
+          "TOTAL_GAIN_PCT",
+          "MARKET_VALUE",
+          "BID",
+          "ASK",
+          "PRICE_CHANGE",
+          "PRICE_CHANGE_PCT",
+          "VOLUME",
+          "WEEK_52_HIGH",
+          "WEEK_52_LOW",
+          "EPS",
+          "PE_RATIO",
+          "OPTION_TYPE",
+          "STRIKE_PRICE",
+          "PREMIUM",
+          "EXPIRATION",
+          "DAYS_GAIN",
+          "COMMISSION",
+          "MARKETCAP",
+          "PREV_CLOSE",
+          "OPEN",
+          "DAYS_RANGE",
+          "TOTAL_COST",
+          "DAYS_GAIN_PCT",
+          "PCT_OF_PORTFOLIO",
+          "LAST_TRADE_TIME",
+          "BASE_SYMBOL_PRICE",
+          "WEEK_52_RANGE",
+          "LAST_TRADE",
+          "SYMBOL_DESC",
+          "BID_SIZE",
+          "ASK_SIZE",
+          "OTHER_FEES",
+          "HELD_AS",
+          "OPTION_MULTIPLIER",
+          "DELIVERABLES",
+          "COST_PERSHARE",
+          "DIVIDEND",
+          "DIV_YIELD",
+          "DIV_PAY_DATE",
+          "EST_EARN",
+          "EX_DIV_DATE",
+          "TEN_DAY_AVG_DAILY_VOLUME"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "sortOrder",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "ASC",
+          "DESC"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "pageNumber",
+        "location": "query",
+        "required": false,
+        "type": "integer",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "marketSession",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "REGULAR",
+          "EXTENDED"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "totalsRequired",
+        "location": "query",
+        "required": false,
+        "type": "boolean",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "lotsRequired",
+        "location": "query",
+        "required": false,
+        "type": "boolean",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "view",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "PERFORMANCE",
+          "FUNDAMENTAL",
+          "OPTIONSWATCH",
+          "QUICK",
+          "COMPLETE"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      }
+    ]
+  },
+  {
+    "operation": "listTransactions",
+    "path": "/accounts/{accountIdKey}/transactions",
+    "parameters": [
+      {
+        "name": "accountIdKey",
+        "location": "path",
+        "required": true,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "startDate",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": "^\\d{8}$"
+      },
+      {
+        "name": "endDate",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": "^\\d{8}$"
+      },
+      {
+        "name": "sortOrder",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "ASC",
+          "DESC"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "marker",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "count",
+        "location": "query",
+        "required": false,
+        "type": "integer",
+        "values": [],
+        "minimum": 1,
+        "maximum": 50,
+        "pattern": null
+      }
+    ]
+  },
+  {
+    "operation": "getTransactionDetails",
+    "path": "/accounts/{accountIdKey}/transactions/{transactionId}",
+    "parameters": [
+      {
+        "name": "accountIdKey",
+        "location": "path",
+        "required": true,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "transactionId",
+        "location": "path",
+        "required": true,
+        "type": "integer",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "storeId",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      }
+    ]
+  },
+  {
+    "operation": "getQuotes",
+    "path": "/market/quote/{symbols}",
+    "parameters": [
+      {
+        "name": "symbols",
+        "location": "path",
+        "required": true,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "detailFlag",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "ALL",
+          "FUNDAMENTAL",
+          "INTRADAY",
+          "OPTIONS",
+          "WEEK_52",
+          "MF_DETAIL"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "requireEarningsDate",
+        "location": "query",
+        "required": false,
+        "type": "boolean",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "overrideSymbolCount",
+        "location": "query",
+        "required": false,
+        "type": "boolean",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "skipMiniOptionsCheck",
+        "location": "query",
+        "required": false,
+        "type": "boolean",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      }
+    ]
+  },
+  {
+    "operation": "lookupProduct",
+    "path": "/market/lookup/{search}",
+    "parameters": [
+      {
+        "name": "search",
+        "location": "path",
+        "required": true,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      }
+    ]
+  },
+  {
+    "operation": "getOptionChains",
+    "path": "/market/optionchains",
+    "parameters": [
+      {
+        "name": "symbol",
+        "location": "query",
+        "required": true,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "expiryYear",
+        "location": "query",
+        "required": false,
+        "type": "integer",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "expiryMonth",
+        "location": "query",
+        "required": false,
+        "type": "integer",
+        "values": [],
+        "minimum": 1,
+        "maximum": 12,
+        "pattern": null
+      },
+      {
+        "name": "expiryDay",
+        "location": "query",
+        "required": false,
+        "type": "integer",
+        "values": [],
+        "minimum": 1,
+        "maximum": 31,
+        "pattern": null
+      },
+      {
+        "name": "strikePriceNear",
+        "location": "query",
+        "required": false,
+        "type": "number",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "noOfStrikes",
+        "location": "query",
+        "required": false,
+        "type": "integer",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "includeWeekly",
+        "location": "query",
+        "required": false,
+        "type": "boolean",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "skipAdjusted",
+        "location": "query",
+        "required": false,
+        "type": "boolean",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "optionCategory",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "STANDARD",
+          "ALL",
+          "MINI"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "chainType",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "CALL",
+          "PUT",
+          "CALLPUT"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "priceType",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "ATNM",
+          "ALL"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      }
+    ]
+  },
+  {
+    "operation": "getOptionExpireDates",
+    "path": "/market/optionexpiredate",
+    "parameters": [
+      {
+        "name": "symbol",
+        "location": "query",
+        "required": true,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "expiryType",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "ALL",
+          "UNSPECIFIED",
+          "DAILY",
+          "WEEKLY",
+          "MONTHLY",
+          "QUARTERLY"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      }
+    ]
+  },
+  {
+    "operation": "listOrders",
+    "path": "/accounts/{accountIdKey}/orders",
+    "parameters": [
+      {
+        "name": "accountIdKey",
+        "location": "path",
+        "required": true,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "marker",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "count",
+        "location": "query",
+        "required": false,
+        "type": "integer",
+        "values": [],
+        "minimum": null,
+        "maximum": 100,
+        "pattern": null
+      },
+      {
+        "name": "status",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "OPEN",
+          "EXECUTED",
+          "CANCELLED",
+          "INDIVIDUAL_FILLS",
+          "CANCEL_REQUESTED",
+          "EXPIRED",
+          "REJECTED"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "fromDate",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": "^\\d{8}$"
+      },
+      {
+        "name": "toDate",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": "^\\d{8}$"
+      },
+      {
+        "name": "symbol",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "securityType",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "EQ",
+          "OPTN",
+          "MF",
+          "MMF"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "transactionType",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "ATNM",
+          "BUY",
+          "SELL",
+          "SELL_SHORT",
+          "BUY_TO_COVER",
+          "MF_EXCHANGE"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      },
+      {
+        "name": "marketSession",
+        "location": "query",
+        "required": false,
+        "type": "string",
+        "values": [
+          "REGULAR",
+          "EXTENDED"
+        ],
+        "minimum": null,
+        "maximum": null,
+        "pattern": null
+      }
+    ]
+  }
+]

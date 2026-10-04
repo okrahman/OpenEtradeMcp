@@ -1,11 +1,9 @@
 openapi: 3.0.3
 info:
   title: E*TRADE API
-  description: |
-    E*TRADE API provides access to account information, balances, portfolios, transactions, 
-    market quotes, and order management.
-    
-    This API uses OAuth 1.0a for authentication. All requests must include proper OAuth headers.
+  description: "E*TRADE API provides access to account information, balances, portfolios,\
+    \ transactions, \nmarket quotes, and order management.\n\nThis API uses OAuth\
+    \ 1.0a for authentication. All requests must include proper OAuth headers.\n"
   version: 1.0.0
   contact:
     name: E*TRADE Developer Support
@@ -13,34 +11,30 @@ info:
   license:
     name: E*TRADE API License
     url: https://developer.etrade.com
-
 servers:
-  - url: https://api.etrade.com/v1
-    description: Production Server
-  - url: https://apisb.etrade.com/v1
-    description: Sandbox Server
-
+- url: https://api.etrade.com/v1
+  description: Production read API
 tags:
-  - name: Accounts
-    description: Account listing and information
-  - name: Balance
-    description: Account balance operations
-  - name: Portfolio
-    description: Portfolio operations
-  - name: Transactions
-    description: Transaction operations
-  - name: Market
-    description: Market quotes and data
-  - name: Orders
-    description: Order management operations
-
+- name: Accounts
+  description: Account listing and information
+- name: Balance
+  description: Account balance operations
+- name: Portfolio
+  description: Portfolio operations
+- name: Transactions
+  description: Transaction operations
+- name: Market
+  description: Market quotes and data
+- name: Orders
+  description: Order management operations
 paths:
   /accounts/list:
     get:
       tags:
-        - Accounts
+      - Accounts
       summary: List Accounts
-      description: Returns the account information for the current user. The information returned includes account type, mode, and details.
+      description: Returns the account information for the current user. The information
+        returned includes account type, mode, and details.
       operationId: listAccounts
       responses:
         '200':
@@ -56,42 +50,44 @@ paths:
           description: No records available
         '500':
           description: Internal server error
-
   /accounts/{accountIdKey}/balance:
     get:
       tags:
-        - Balance
+      - Balance
       summary: Get Account Balances
-      description: Returns detailed balance information for a specified account for the current user.
+      description: Returns detailed balance information for a specified account for
+        the current user.
       operationId: getAccountBalance
       parameters:
-        - name: accountIdKey
-          in: path
-          required: true
-          description: The unique account key. Retrievable by calling the List Accounts API.
-          schema:
-            type: string
-        - name: instType
-          in: query
-          required: true
-          description: The account institution type for which the balance or information is requested
-          schema:
-            type: string
-            enum:
-              - BROKERAGE
-        - name: accountType
-          in: query
-          required: false
-          description: The registered account type
-          schema:
-            $ref: '#/components/schemas/AccountType'
-        - name: realTimeNAV
-          in: query
-          required: false
-          description: If true, fetches real time balance. Default is false.
-          schema:
-            type: boolean
-            default: false
+      - name: accountIdKey
+        in: path
+        required: true
+        description: The unique account key. Retrievable by calling the List Accounts
+          API.
+        schema:
+          type: string
+      - name: instType
+        in: query
+        required: true
+        description: The account institution type for which the balance or information
+          is requested
+        schema:
+          type: string
+          enum:
+          - BROKERAGE
+      - name: accountType
+        in: query
+        required: false
+        description: The registered account type
+        schema:
+          $ref: '#/components/schemas/AccountType'
+      - name: realTimeNAV
+        in: query
+        required: false
+        description: If true, fetches real time balance. Default is false.
+        schema:
+          type: boolean
+          default: false
       responses:
         '200':
           description: Successful operation
@@ -106,139 +102,142 @@ paths:
           description: Bad request - Invalid account or parameters
         '500':
           description: Internal server error
-
   /accounts/{accountIdKey}/portfolio:
     get:
       tags:
-        - Portfolio
+      - Portfolio
       summary: View Portfolio
-      description: Returns detailed portfolio information for a selected brokerage account.
+      description: Returns detailed portfolio information for a selected brokerage
+        account.
       operationId: getPortfolio
       parameters:
-        - name: accountIdKey
-          in: path
-          required: true
-          description: The unique account key. Retrievable by calling the List Accounts API.
-          schema:
-            type: string
-        - name: count
-          in: query
-          required: false
-          description: The number of positions to return in the response. Default is 50.
-          schema:
-            type: integer
-            default: 50
-        - name: sortBy
-          in: query
-          required: false
-          description: The sort by query
-          schema:
-            type: string
-            enum:
-              - SYMBOL
-              - TYPE_NAME
-              - EXCHANGE_NAME
-              - CURRENCY
-              - QUANTITY
-              - LONG_OR_SHORT
-              - DATE_ACQUIRED
-              - PRICEPAID
-              - TOTAL_GAIN
-              - TOTAL_GAIN_PCT
-              - MARKET_VALUE
-              - BID
-              - ASK
-              - PRICE_CHANGE
-              - PRICE_CHANGE_PCT
-              - VOLUME
-              - WEEK_52_HIGH
-              - WEEK_52_LOW
-              - EPS
-              - PE_RATIO
-              - OPTION_TYPE
-              - STRIKE_PRICE
-              - PREMIUM
-              - EXPIRATION
-              - DAYS_GAIN
-              - COMMISSION
-              - MARKETCAP
-              - PREV_CLOSE
-              - OPEN
-              - DAYS_RANGE
-              - TOTAL_COST
-              - DAYS_GAIN_PCT
-              - PCT_OF_PORTFOLIO
-              - LAST_TRADE_TIME
-              - BASE_SYMBOL_PRICE
-              - WEEK_52_RANGE
-              - LAST_TRADE
-              - SYMBOL_DESC
-              - BID_SIZE
-              - ASK_SIZE
-              - OTHER_FEES
-              - HELD_AS
-              - OPTION_MULTIPLIER
-              - DELIVERABLES
-              - COST_PERSHARE
-              - DIVIDEND
-              - DIV_YIELD
-              - DIV_PAY_DATE
-              - EST_EARN
-              - EX_DIV_DATE
-              - TEN_DAY_AVG_DAILY_VOLUME
-        - name: sortOrder
-          in: query
-          required: false
-          description: The sort order query. Default is DESC.
-          schema:
-            type: string
-            enum:
-              - ASC
-              - DESC
-            default: DESC
-        - name: pageNumber
-          in: query
-          required: false
-          description: The specific page in the list to be returned. Each page has a default count of 50 positions.
-          schema:
-            type: integer
-        - name: marketSession
-          in: query
-          required: false
-          description: The market session. Default is REGULAR.
-          schema:
-            type: string
-            enum:
-              - REGULAR
-              - EXTENDED
-            default: REGULAR
-        - name: totalsRequired
-          in: query
-          required: false
-          description: Returns the total values of the portfolio. Default is false.
-          schema:
-            type: boolean
-            default: false
-        - name: lotsRequired
-          in: query
-          required: false
-          description: Returns position lots for positions. Default is false.
-          schema:
-            type: boolean
-            default: false
-        - name: view
-          in: query
-          required: false
-          description: The view query. Default is Quick.
-          schema:
-            type: string
-            enum:
-              - PERFORMANCE
-              - FUNDAMENTAL
-              - OPTIONSWATCH
-              - QUICK
-              - COMPLETE
-            default: QUICK
+      - name: accountIdKey
+        in: path
+        required: true
+        description: The unique account key. Retrievable by calling the List Accounts
+          API.
+        schema:
+          type: string
+      - name: count
+        in: query
+        required: false
+        description: The number of positions to return in the response. Default is
+          50.
+        schema:
+          type: integer
+          default: 50
+      - name: sortBy
+        in: query
+        required: false
+        description: The sort by query
+        schema:
+          type: string
+          enum:
+          - SYMBOL
+          - TYPE_NAME
+          - EXCHANGE_NAME
+          - CURRENCY
+          - QUANTITY
+          - LONG_OR_SHORT
+          - DATE_ACQUIRED
+          - PRICEPAID
+          - TOTAL_GAIN
+          - TOTAL_GAIN_PCT
+          - MARKET_VALUE
+          - BID
+          - ASK
+          - PRICE_CHANGE
+          - PRICE_CHANGE_PCT
+          - VOLUME
+          - WEEK_52_HIGH
+          - WEEK_52_LOW
+          - EPS
+          - PE_RATIO
+          - OPTION_TYPE
+          - STRIKE_PRICE
+          - PREMIUM
+          - EXPIRATION
+          - DAYS_GAIN
+          - COMMISSION
+          - MARKETCAP
+          - PREV_CLOSE
+          - OPEN
+          - DAYS_RANGE
+          - TOTAL_COST
+          - DAYS_GAIN_PCT
+          - PCT_OF_PORTFOLIO
+          - LAST_TRADE_TIME
+          - BASE_SYMBOL_PRICE
+          - WEEK_52_RANGE
+          - LAST_TRADE
+          - SYMBOL_DESC
+          - BID_SIZE
+          - ASK_SIZE
+          - OTHER_FEES
+          - HELD_AS
+          - OPTION_MULTIPLIER
+          - DELIVERABLES
+          - COST_PERSHARE
+          - DIVIDEND
+          - DIV_YIELD
+          - DIV_PAY_DATE
+          - EST_EARN
+          - EX_DIV_DATE
+          - TEN_DAY_AVG_DAILY_VOLUME
+      - name: sortOrder
+        in: query
+        required: false
+        description: The sort order query. Default is DESC.
+        schema:
+          type: string
+          enum:
+          - ASC
+          - DESC
+          default: DESC
+      - name: pageNumber
+        in: query
+        required: false
+        description: The specific page in the list to be returned. Each page has a
+          default count of 50 positions.
+        schema:
+          type: integer
+      - name: marketSession
+        in: query
+        required: false
+        description: The market session. Default is REGULAR.
+        schema:
+          type: string
+          enum:
+          - REGULAR
+          - EXTENDED
+          default: REGULAR
+      - name: totalsRequired
+        in: query
+        required: false
+        description: Returns the total values of the portfolio. Default is false.
+        schema:
+          type: boolean
+          default: false
+      - name: lotsRequired
+        in: query
+        required: false
+        description: Returns position lots for positions. Default is false.
+        schema:
+          type: boolean
+          default: false
+      - name: view
+        in: query
+        required: false
+        description: The view query. Default is Quick.
+        schema:
+          type: string
+          enum:
+          - PERFORMANCE
+          - FUNDAMENTAL
+          - OPTIONSWATCH
+          - QUICK
+          - COMPLETE
+          default: QUICK
       responses:
         '200':
           description: Successful operation
@@ -255,70 +254,73 @@ paths:
           description: Bad request - Invalid parameters
         '500':
           description: Internal server error
-
   /accounts/{accountIdKey}/transactions:
     get:
       tags:
-        - Transactions
+      - Transactions
       summary: List Transactions
       description: Get all transactions for the specified account.
       operationId: listTransactions
       parameters:
-        - name: accountIdKey
-          in: path
-          required: true
-          description: The unique account key. Retrievable by calling the List Accounts API.
-          schema:
-            type: string
-        - name: Accept
-          in: header
-          required: false
-          description: Format in which transactions can be returned
-          schema:
-            type: string
-            enum:
-              - application/vnd.ms-excel
-              - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-              - application/json
-              - application/xml
-        - name: startDate
-          in: query
-          required: false
-          description: The earliest date to include in the date range, formatted as MMDDYYYY. History is available for two years.
-          schema:
-            type: string
-            pattern: '^\d{8}$'
-        - name: endDate
-          in: query
-          required: false
-          description: The latest date to include in the date range, formatted as MMDDYYYY
-          schema:
-            type: string
-            pattern: '^\d{8}$'
-        - name: sortOrder
-          in: query
-          required: false
-          description: The sort order request
-          schema:
-            type: string
-            enum:
-              - ASC
-              - DESC
-        - name: marker
-          in: query
-          required: false
-          description: Specifies the desired starting point of the set of items to return. Used for paging.
-          schema:
-            type: string
-        - name: count
-          in: query
-          required: false
-          description: Number of transactions to return in the response. If not specified, defaults to 50.
-          schema:
-            type: integer
-            default: 50
-            minimum: 1
-            maximum: 50
+      - name: accountIdKey
+        in: path
+        required: true
+        description: The unique account key. Retrievable by calling the List Accounts
+          API.
+        schema:
+          type: string
+      - name: Accept
+        in: header
+        required: false
+        description: Format in which transactions can be returned
+        schema:
+          type: string
+          enum:
+          - application/vnd.ms-excel
+          - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+          - application/json
+          - application/xml
+      - name: startDate
+        in: query
+        required: false
+        description: The earliest date to include in the date range, formatted as
+          MMDDYYYY. History is available for two years.
+        schema:
+          type: string
+          pattern: ^\d{8}$
+      - name: endDate
+        in: query
+        required: false
+        description: The latest date to include in the date range, formatted as MMDDYYYY
+        schema:
+          type: string
+          pattern: ^\d{8}$
+      - name: sortOrder
+        in: query
+        required: false
+        description: The sort order request
+        schema:
+          type: string
+          enum:
+          - ASC
+          - DESC
+      - name: marker
+        in: query
+        required: false
+        description: Specifies the desired starting point of the set of items to return.
+          Used for paging.
+        schema:
+          type: string
+      - name: count
+        in: query
+        required: false
+        description: Number of transactions to return in the response. If not specified,
+          defaults to 50.
+        schema:
+          type: integer
+          default: 50
+          minimum: 1
+          maximum: 50
       responses:
         '200':
           description: Successful operation
@@ -337,44 +339,44 @@ paths:
           description: Not found - Invalid transaction parameters
         '500':
           description: Internal server error
-
   /accounts/{accountIdKey}/transactions/{transactionId}:
     get:
       tags:
-        - Transactions
+      - Transactions
       summary: Get Transaction Details
       description: Get transaction details for the specified transaction.
       operationId: getTransactionDetails
       parameters:
-        - name: accountIdKey
-          in: path
-          required: true
-          description: The unique account key. Retrievable by calling the List Accounts API.
-          schema:
-            type: string
-        - name: transactionId
-          in: path
-          required: true
-          description: The transaction ID
-          schema:
-            type: integer
-            format: int64
-        - name: Accept
-          in: header
-          required: false
-          description: Format in which transaction detail can be returned
-          schema:
-            type: string
-            enum:
-              - application/pdf
-              - application/json
-              - application/xml
-        - name: storeId
-          in: query
-          required: false
-          description: Storage location for older transactions
-          schema:
-            type: string
+      - name: accountIdKey
+        in: path
+        required: true
+        description: The unique account key. Retrievable by calling the List Accounts
+          API.
+        schema:
+          type: string
+      - name: transactionId
+        in: path
+        required: true
+        description: The transaction ID
+        schema:
+          type: integer
+          format: int64
+      - name: Accept
+        in: header
+        required: false
+        description: Format in which transaction detail can be returned
+        schema:
+          type: string
+          enum:
+          - application/pdf
+          - application/json
+          - application/xml
+      - name: storeId
+        in: query
+        required: false
+        description: Storage location for older transactions
+        schema:
+          type: string
       responses:
         '200':
           description: Successful operation
@@ -393,62 +395,67 @@ paths:
           description: Not found - Invalid transaction ID
         '500':
           description: Internal server error
-
-  # ========== Market API ==========
   /market/quote/{symbols}:
     get:
       tags:
-        - Market
+      - Market
       summary: Get Quotes
-      description: |
-        Returns detailed quote information for one or more specified securities.
+      description: 'Returns detailed quote information for one or more specified securities.
+
         An optional flag specifies one of several pre-configured field sets to return.
+
+        '
       operationId: getQuotes
       parameters:
-        - name: symbols
-          in: path
-          required: true
-          description: |
-            One or more (comma-separated) symbols for equities or options, up to a maximum of 25.
-            Symbols for equities are simple, e.g., GOOG.
-            Symbols for options consist of: underlier:year:month:day:optionType:strikePrice
-          schema:
-            type: string
-        - name: detailFlag
-          in: query
-          required: false
-          description: Determines the market fields returned from a quote request
-          schema:
-            type: string
-            enum:
-              - ALL
-              - FUNDAMENTAL
-              - INTRADAY
-              - OPTIONS
-              - WEEK_52
-              - MF_DETAIL
-            default: ALL
-        - name: requireEarningsDate
-          in: query
-          required: false
-          description: If true, nextEarningDate will be provided in the output
-          schema:
-            type: boolean
-            default: false
-        - name: overrideSymbolCount
-          in: query
-          required: false
-          description: If true, symbolList may contain a maximum of 50 symbols
-          schema:
-            type: boolean
-            default: false
-        - name: skipMiniOptionsCheck
-          in: query
-          required: false
-          description: If true, no call is made to check whether the symbol has mini options
-          schema:
-            type: boolean
-            default: false
+      - name: symbols
+        in: path
+        required: true
+        description: 'One or more (comma-separated) symbols for equities or options,
+          up to a maximum of 25.
+
+          Symbols for equities are simple, e.g., GOOG.
+
+          Symbols for options consist of: underlier:year:month:day:optionType:strikePrice
+
+          '
+        schema:
+          type: string
+      - name: detailFlag
+        in: query
+        required: false
+        description: Determines the market fields returned from a quote request
+        schema:
+          type: string
+          enum:
+          - ALL
+          - FUNDAMENTAL
+          - INTRADAY
+          - OPTIONS
+          - WEEK_52
+          - MF_DETAIL
+          default: ALL
+      - name: requireEarningsDate
+        in: query
+        required: false
+        description: If true, nextEarningDate will be provided in the output
+        schema:
+          type: boolean
+          default: false
+      - name: overrideSymbolCount
+        in: query
+        required: false
+        description: If true, symbolList may contain a maximum of 50 symbols
+        schema:
+          type: boolean
+          default: false
+      - name: skipMiniOptionsCheck
+        in: query
+        required: false
+        description: If true, no call is made to check whether the symbol has mini
+          options
+        schema:
+          type: boolean
+          default: false
       responses:
         '200':
           description: Successful operation
@@ -463,23 +470,25 @@ paths:
           description: Invalid symbol or parameters
         '500':
           description: Quote service unavailable
-
   /market/lookup/{search}:
     get:
       tags:
-        - Market
+      - Market
       summary: Look Up Product
-      description: |
-        Returns a list of securities of a specified type based on a search string.
+      description: 'Returns a list of securities of a specified type based on a search
+        string.
+
         The search string is compared against the company name.
+
+        '
       operationId: lookupProduct
       parameters:
-        - name: search
-          in: path
-          required: true
-          description: The search string for company name lookup
-          schema:
-            type: string
+      - name: search
+        in: path
+        required: true
+        description: The search string for company name lookup
+        schema:
+          type: string
       responses:
         '200':
           description: Successful operation
@@ -494,101 +503,104 @@ paths:
           description: Invalid search parameters
         '500':
           description: Lookup service unavailable
-
   /market/optionchains:
     get:
       tags:
-        - Market
+      - Market
       summary: Get Option Chains
-      description: |
-        Returns the option chain information for a specified symbol and expiration date.
+      description: 'Returns the option chain information for a specified symbol and
+        expiration date.
+
         The option chain includes call and put option details for the requested strikes.
+
+        '
       operationId: getOptionChains
       parameters:
-        - name: symbol
-          in: query
-          required: true
-          description: The market symbol for the instrument
-          schema:
-            type: string
-        - name: expiryYear
-          in: query
-          required: false
-          description: The 4-digit year for the option expiration
-          schema:
-            type: integer
-        - name: expiryMonth
-          in: query
-          required: false
-          description: The month (1-12) for the option expiration
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 12
-        - name: expiryDay
-          in: query
-          required: false
-          description: The day (1-31) for the option expiration
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 31
-        - name: strikePriceNear
-          in: query
-          required: false
-          description: The strike price near which to return options
-          schema:
-            type: number
-            format: double
-        - name: noOfStrikes
-          in: query
-          required: false
-          description: The number of strikes to return above and below the strikePriceNear value
-          schema:
-            type: integer
-        - name: includeWeekly
-          in: query
-          required: false
-          description: Whether to include weekly options
-          schema:
-            type: boolean
-            default: false
-        - name: skipAdjusted
-          in: query
-          required: false
-          description: Whether to skip adjusted options
-          schema:
-            type: boolean
-            default: true
-        - name: optionCategory
-          in: query
-          required: false
-          description: The option category
-          schema:
-            type: string
-            enum:
-              - STANDARD
-              - ALL
-              - MINI
-        - name: chainType
-          in: query
-          required: false
-          description: The type of option chain
-          schema:
-            type: string
-            enum:
-              - CALL
-              - PUT
-              - CALLPUT
-        - name: priceType
-          in: query
-          required: false
-          description: The price type for the option chain
-          schema:
-            type: string
-            enum:
-              - ATNM
-              - ALL
+      - name: symbol
+        in: query
+        required: true
+        description: The market symbol for the instrument
+        schema:
+          type: string
+      - name: expiryYear
+        in: query
+        required: false
+        description: The 4-digit year for the option expiration
+        schema:
+          type: integer
+      - name: expiryMonth
+        in: query
+        required: false
+        description: The month (1-12) for the option expiration
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 12
+      - name: expiryDay
+        in: query
+        required: false
+        description: The day (1-31) for the option expiration
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 31
+      - name: strikePriceNear
+        in: query
+        required: false
+        description: The strike price near which to return options
+        schema:
+          type: number
+          format: double
+      - name: noOfStrikes
+        in: query
+        required: false
+        description: The number of strikes to return above and below the strikePriceNear
+          value
+        schema:
+          type: integer
+      - name: includeWeekly
+        in: query
+        required: false
+        description: Whether to include weekly options
+        schema:
+          type: boolean
+          default: false
+      - name: skipAdjusted
+        in: query
+        required: false
+        description: Whether to skip adjusted options
+        schema:
+          type: boolean
+          default: true
+      - name: optionCategory
+        in: query
+        required: false
+        description: The option category
+        schema:
+          type: string
+          enum:
+          - STANDARD
+          - ALL
+          - MINI
+      - name: chainType
+        in: query
+        required: false
+        description: The type of option chain
+        schema:
+          type: string
+          enum:
+          - CALL
+          - PUT
+          - CALLPUT
+      - name: priceType
+        in: query
+        required: false
+        description: The price type for the option chain
+        schema:
+          type: string
+          enum:
+          - ATNM
+          - ALL
       responses:
         '200':
           description: Successful operation
@@ -603,36 +615,40 @@ paths:
           description: Invalid symbol or parameters
         '500':
           description: Option chain service unavailable
-
   /market/optionexpiredate:
     get:
       tags:
-        - Market
+      - Market
       summary: Get Option Expire Dates
-      description: |
-        Returns a list of available expiration dates for options on the specified symbol.
-        This can be used to determine valid expiry dates before calling the option chains endpoint.
+      description: 'Returns a list of available expiration dates for options on the
+        specified symbol.
+
+        This can be used to determine valid expiry dates before calling the option
+        chains endpoint.
+
+        '
       operationId: getOptionExpireDates
       parameters:
-        - name: symbol
-          in: query
-          required: true
-          description: The market symbol for the instrument
-          schema:
-            type: string
-        - name: expiryType
-          in: query
-          required: false
-          description: The expiry type for the options (ALL, UNSPECIFIED, DAILY, WEEKLY, MONTHLY, QUARTERLY)
-          schema:
-            type: string
-            enum:
-              - ALL
-              - UNSPECIFIED
-              - DAILY
-              - WEEKLY
-              - MONTHLY
-              - QUARTERLY
+      - name: symbol
+        in: query
+        required: true
+        description: The market symbol for the instrument
+        schema:
+          type: string
+      - name: expiryType
+        in: query
+        required: false
+        description: The expiry type for the options (ALL, UNSPECIFIED, DAILY, WEEKLY,
+          MONTHLY, QUARTERLY)
+        schema:
+          type: string
+          enum:
+          - ALL
+          - UNSPECIFIED
+          - DAILY
+          - WEEKLY
+          - MONTHLY
+          - QUARTERLY
       responses:
         '200':
           description: Successful operation
@@ -647,104 +663,108 @@ paths:
           description: Invalid symbol or parameters
         '500':
           description: Option expire date service unavailable
-
-  # ========== Orders API ==========
   /accounts/{accountIdKey}/orders:
     get:
       tags:
-        - Orders
+      - Orders
       summary: List Orders
-      description: |
-        Returns the order details for a selected brokerage account based on the search criteria provided.
+      description: 'Returns the order details for a selected brokerage account based
+        on the search criteria provided.
+
+        '
       operationId: listOrders
       parameters:
-        - name: accountIdKey
-          in: path
-          required: true
-          description: The unique account key. Retrievable by calling the List Accounts API.
-          schema:
-            type: string
-        - name: marker
-          in: query
-          required: false
-          description: Specifies the desired starting point of the set of items to return. Used for paging.
-          schema:
-            type: string
-        - name: count
-          in: query
-          required: false
-          description: Number of orders to return. Default is 25, maximum is 100.
-          schema:
-            type: integer
-            default: 25
-            maximum: 100
-        - name: status
-          in: query
-          required: false
-          description: Filter by order status
-          schema:
-            type: string
-            enum:
-              - OPEN
-              - EXECUTED
-              - CANCELLED
-              - INDIVIDUAL_FILLS
-              - CANCEL_REQUESTED
-              - EXPIRED
-              - REJECTED
-        - name: fromDate
-          in: query
-          required: false
-          description: The earliest date to include, formatted as MMDDYYYY. History is available for two years.
-          schema:
-            type: string
-            pattern: '^\d{8}$'
-        - name: toDate
-          in: query
-          required: false
-          description: The latest date to include, formatted as MMDDYYYY.
-          schema:
-            type: string
-            pattern: '^\d{8}$'
-        - name: symbol
-          in: query
-          required: false
-          description: The market symbol(s) for filtering. Up to 25 symbols separated by comma.
-          schema:
-            type: string
-        - name: securityType
-          in: query
-          required: false
-          description: The security type filter
-          schema:
-            type: string
-            enum:
-              - EQ
-              - OPTN
-              - MF
-              - MMF
-        - name: transactionType
-          in: query
-          required: false
-          description: Type of transaction filter
-          schema:
-            type: string
-            enum:
-              - ATNM
-              - BUY
-              - SELL
-              - SELL_SHORT
-              - BUY_TO_COVER
-              - MF_EXCHANGE
-        - name: marketSession
-          in: query
-          required: false
-          description: Session in which the order was placed
-          schema:
-            type: string
-            enum:
-              - REGULAR
-              - EXTENDED
+      - name: accountIdKey
+        in: path
+        required: true
+        description: The unique account key. Retrievable by calling the List Accounts
+          API.
+        schema:
+          type: string
+      - name: marker
+        in: query
+        required: false
+        description: Specifies the desired starting point of the set of items to return.
+          Used for paging.
+        schema:
+          type: string
+      - name: count
+        in: query
+        required: false
+        description: Number of orders to return. Default is 25, maximum is 100.
+        schema:
+          type: integer
+          default: 25
+          maximum: 100
+      - name: status
+        in: query
+        required: false
+        description: Filter by order status
+        schema:
+          type: string
+          enum:
+          - OPEN
+          - EXECUTED
+          - CANCELLED
+          - INDIVIDUAL_FILLS
+          - CANCEL_REQUESTED
+          - EXPIRED
+          - REJECTED
+      - name: fromDate
+        in: query
+        required: false
+        description: The earliest date to include, formatted as MMDDYYYY. History
+          is available for two years.
+        schema:
+          type: string
+          pattern: ^\d{8}$
+      - name: toDate
+        in: query
+        required: false
+        description: The latest date to include, formatted as MMDDYYYY.
+        schema:
+          type: string
+          pattern: ^\d{8}$
+      - name: symbol
+        in: query
+        required: false
+        description: The market symbol(s) for filtering. Up to 25 symbols separated
+          by comma.
+        schema:
+          type: string
+      - name: securityType
+        in: query
+        required: false
+        description: The security type filter
+        schema:
+          type: string
+          enum:
+          - EQ
+          - OPTN
+          - MF
+          - MMF
+      - name: transactionType
+        in: query
+        required: false
+        description: Type of transaction filter
+        schema:
+          type: string
+          enum:
+          - ATNM
+          - BUY
+          - SELL
+          - SELL_SHORT
+          - BUY_TO_COVER
+          - MF_EXCHANGE
+      - name: marketSession
+        in: query
+        required: false
+        description: Session in which the order was placed
+        schema:
+          type: string
+          enum:
+          - REGULAR
+          - EXTENDED
       responses:
         '200':
           description: Successful operation
@@ -761,92 +781,6 @@ paths:
           description: No orders found
         '500':
           description: Internal server error
-
-  /accounts/{accountIdKey}/orders/preview:
-    post:
-      tags:
-        - Orders
-      summary: Preview Order
-      description: |
-        Submits an order request for preview before placing it.
-        Preview allows you to see estimated costs, commissions, and potential issues.
-      operationId: previewOrder
-      parameters:
-        - name: accountIdKey
-          in: path
-          required: true
-          description: The unique account key.
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PreviewOrderRequestEnvelope'
-          application/xml:
-            schema:
-              $ref: '#/components/schemas/PreviewOrderRequestEnvelope'
-      responses:
-        '200':
-          description: Successful preview
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PreviewOrderResponse'
-            application/xml:
-              schema:
-                $ref: '#/components/schemas/PreviewOrderResponse'
-        '400':
-          description: Invalid order parameters
-        '500':
-          description: Internal server error
-
-  /accounts/{accountIdKey}/orders/{orderId}/change/preview:
-    put:
-      tags:
-        - Orders
-      summary: Preview Changed Order
-      description: Previews modifications to an existing order.
-      operationId: previewChangeOrder
-      parameters:
-        - name: accountIdKey
-          in: path
-          required: true
-          description: The unique account key.
-          schema:
-            type: string
-        - name: orderId
-          in: path
-          required: true
-          description: The order ID to modify.
-          schema:
-            type: integer
-            format: int64
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PreviewOrderRequestEnvelope'
-          application/xml:
-            schema:
-              $ref: '#/components/schemas/PreviewOrderRequestEnvelope'
-      responses:
-        '200':
-          description: Preview successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PreviewOrderResponse'
-            application/xml:
-              schema:
-                $ref: '#/components/schemas/PreviewOrderResponse'
-        '400':
-          description: Invalid parameters
-        '500':
-          description: Internal server error
-
 components:
   securitySchemes:
     oauth1:
@@ -854,179 +788,167 @@ components:
       in: header
       name: Authorization
       description: OAuth 1.0a authentication
-
   schemas:
     AccountType:
       type: string
       enum:
-        - AMMCHK
-        - ARO
-        - BCHK
-        - BENFIRA
-        - BENFROTHIRA
-        - BENF_ESTATE_IRA
-        - BENF_MINOR_IRA
-        - BENF_ROTH_ESTATE_IRA
-        - BENF_ROTH_MINOR_IRA
-        - BENF_ROTH_TRUST_IRA
-        - BENF_TRUST_IRA
-        - BRKCD
-        - BROKER
-        - CASH
-        - C_CORP
-        - CONTRIBUTORY
-        - COVERDELL_ESA
-        - CONVERSION_ROTH_IRA
-        - CREDITCARD
-        - COMM_PROP
-        - CONSERVATOR
-        - CORPORATION
-        - CSA
-        - CUSTODIAL
-        - DVP
-        - ESTATE
-        - EMPCHK
-        - EMPMMCA
-        - ETCHK
-        - ETMMCHK
-        - HEIL
-        - HELOC
-        - INDCHK
-        - INDIVIDUAL
-        - INDIVIDUAL_K
-        - INVCLUB
-        - INVCLUB_C_CORP
-        - INVCLUB_LLC_C_CORP
-        - INVCLUB_LLC_PARTNERSHIP
-        - INVCLUB_LLC_S_CORP
-        - INVCLUB_PARTNERSHIP
-        - INVCLUB_S_CORP
-        - IRA
-        - IRA_ROLLOVER
-        - JTBE
-        - JTIC
-        - JTWROS
-        - LLC_C_CORP
-        - LLC_PARTNERSHIP
-        - LLC_S_CORP
-        - LLP
-        - LLP_C_CORP
-        - LLP_S_CORP
-        - MARGIN
-        - MONEY_PURCHASE
-        - NONPROFIT
-        - OTHER
-        - PARTNER
-        - PARTNERSHIP
-        - PARTNERSHIP_C_CORP
-        - PARTNERSHIP_S_CORP
-        - PDT_ACCOUNT
-        - PM_ACCOUNT
-        - PROFIT_SHARING
-        - PROPRIETARY
-        - REGUG
-        - ROTH
-        - ROTH_CONVERSION
-        - ROTH_IRA
-        - S_CORP
-        - SEP_IRA
-        - SIMPLE_IRA
-        - TIC
-        - TRUST
-        - UGMA
-        - UTMA
-
+      - AMMCHK
+      - ARO
+      - BCHK
+      - BENFIRA
+      - BENFROTHIRA
+      - BENF_ESTATE_IRA
+      - BENF_MINOR_IRA
+      - BENF_ROTH_ESTATE_IRA
+      - BENF_ROTH_MINOR_IRA
+      - BENF_ROTH_TRUST_IRA
+      - BENF_TRUST_IRA
+      - BRKCD
+      - BROKER
+      - CASH
+      - C_CORP
+      - CONTRIBUTORY
+      - COVERDELL_ESA
+      - CONVERSION_ROTH_IRA
+      - CREDITCARD
+      - COMM_PROP
+      - CONSERVATOR
+      - CORPORATION
+      - CSA
+      - CUSTODIAL
+      - DVP
+      - ESTATE
+      - EMPCHK
+      - EMPMMCA
+      - ETCHK
+      - ETMMCHK
+      - HEIL
+      - HELOC
+      - INDCHK
+      - INDIVIDUAL
+      - INDIVIDUAL_K
+      - INVCLUB
+      - INVCLUB_C_CORP
+      - INVCLUB_LLC_C_CORP
+      - INVCLUB_LLC_PARTNERSHIP
+      - INVCLUB_LLC_S_CORP
+      - INVCLUB_PARTNERSHIP
+      - INVCLUB_S_CORP
+      - IRA
+      - IRA_ROLLOVER
+      - JTBE
+      - JTIC
+      - JTWROS
+      - LLC_C_CORP
+      - LLC_PARTNERSHIP
+      - LLC_S_CORP
+      - LLP
+      - LLP_C_CORP
+      - LLP_S_CORP
+      - MARGIN
+      - MONEY_PURCHASE
+      - NONPROFIT
+      - OTHER
+      - PARTNER
+      - PARTNERSHIP
+      - PARTNERSHIP_C_CORP
+      - PARTNERSHIP_S_CORP
+      - PDT_ACCOUNT
+      - PM_ACCOUNT
+      - PROFIT_SHARING
+      - PROPRIETARY
+      - REGUG
+      - ROTH
+      - ROTH_CONVERSION
+      - ROTH_IRA
+      - S_CORP
+      - SEP_IRA
+      - SIMPLE_IRA
+      - TIC
+      - TRUST
+      - UGMA
+      - UTMA
     AccountMode:
       type: string
       enum:
-        - CASH
-        - MARGIN
-        - CHECKING
-        - IRA
-        - SAVINGS
-        - CD
-
+      - CASH
+      - MARGIN
+      - CHECKING
+      - IRA
+      - SAVINGS
+      - CD
     AccountStatus:
       type: string
       enum:
-        - ACTIVE
-        - CLOSED
-
+      - ACTIVE
+      - CLOSED
     InstitutionType:
       type: string
       enum:
-        - BROKERAGE
-
+      - BROKERAGE
     QuoteStatus:
       type: string
       enum:
-        - REALTIME
-        - DELAYED
-        - CLOSING
-        - EH_REALTIME
-        - EH_BEFORE_OPEN
-        - EH_CLOSED
-
+      - REALTIME
+      - DELAYED
+      - CLOSING
+      - EH_REALTIME
+      - EH_BEFORE_OPEN
+      - EH_CLOSED
     SecurityType:
       type: string
       enum:
-        - BOND
-        - EQ
-        - INDX
-        - MF
-        - MMF
-        - OPTN
-
+      - BOND
+      - EQ
+      - INDX
+      - MF
+      - MMF
+      - OPTN
     CallPut:
       type: string
       enum:
-        - CALL
-        - PUT
-
+      - CALL
+      - PUT
     TypeCode:
       type: string
       enum:
-        - EQUITY
-        - OPTION
-        - MUTUAL_FUND
-        - INDEX
-        - MONEY_MARKET_FUND
-        - BOND
-        - UNKNOWN
-        - WILDCARD
-        - MOVE
-        - ETF
-        - EQUITY_OPTION_ETF
-        - EQUITY_ETF
-        - CLOSED_END_FUND
-        - PREFERRED
-        - EQUITY_OPTN
-        - EXCHANGE_TRADED_FUND
-        - MUTUAL_FUND_MONEY_MARKET_FUND
-
+      - EQUITY
+      - OPTION
+      - MUTUAL_FUND
+      - INDEX
+      - MONEY_MARKET_FUND
+      - BOND
+      - UNKNOWN
+      - WILDCARD
+      - MOVE
+      - ETF
+      - EQUITY_OPTION_ETF
+      - EQUITY_ETF
+      - CLOSED_END_FUND
+      - PREFERRED
+      - EQUITY_OPTN
+      - EXCHANGE_TRADED_FUND
+      - MUTUAL_FUND_MONEY_MARKET_FUND
     PositionIndicator:
       type: string
       enum:
-        - TYPE1
-        - TYPE2
-        - TYPE5
-        - UNDEFINED
-
+      - TYPE1
+      - TYPE2
+      - TYPE5
+      - UNDEFINED
     OptionLevel:
       type: string
       enum:
-        - NO_OPTIONS
-        - LEVEL_1
-        - LEVEL_2
-        - LEVEL_3
-        - LEVEL_4
-
+      - NO_OPTIONS
+      - LEVEL_1
+      - LEVEL_2
+      - LEVEL_3
+      - LEVEL_4
     AccountListResponse:
       type: object
       properties:
         accounts:
           $ref: '#/components/schemas/Accounts'
-
     Accounts:
       type: object
       properties:
@@ -1034,8 +956,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Account'
-          description: Display the type, description for each of the user's accounts as well as a detail display for each account.
-
+          description: Display the type, description for each of the user's accounts
+            as well as a detail display for each account.
     Account:
       type: object
       properties:
@@ -1074,7 +996,6 @@ components:
           description: Shareworks Source
         fcManagedMssbClosedAccount:
           type: boolean
-
     BalanceResponse:
       type: object
       properties:
@@ -1120,7 +1041,6 @@ components:
           $ref: '#/components/schemas/Lending'
         computedBalance:
           $ref: '#/components/schemas/ComputedBalance'
-
     Cash:
       type: object
       properties:
@@ -1129,8 +1049,8 @@ components:
           description: The funds reserved for open orders
         moneyMktBalance:
           type: number
-          description: The current cash balance of the money market or sweep deposit account
-
+          description: The current cash balance of the money market or sweep deposit
+            account
     Margin:
       type: object
       properties:
@@ -1140,7 +1060,6 @@ components:
         dtMarginOpenOrderReserve:
           type: number
           description: The margin account margin open order reserve
-
     Lending:
       type: object
       properties:
@@ -1179,7 +1098,6 @@ components:
         paymentReceivedMtd:
           type: number
           description: The month-to-date total of payments received on lent funds
-
     OpenCalls:
       type: object
       properties:
@@ -1195,7 +1113,6 @@ components:
         houseCall:
           type: number
           description: The house call
-
     ComputedBalance:
       type: object
       properties:
@@ -1259,7 +1176,6 @@ components:
           $ref: '#/components/schemas/RealTimeValues'
         portfolioMargin:
           $ref: '#/components/schemas/PortfolioMargin'
-
     RealTimeValues:
       type: object
       properties:
@@ -1278,7 +1194,6 @@ components:
         totalLongValue:
           type: number
           description: The total long value
-
     PortfolioMargin:
       type: object
       properties:
@@ -1315,7 +1230,6 @@ components:
         fundsOnHold:
           type: number
           description: The funds on hold
-
     PortfolioResponse:
       type: object
       properties:
@@ -1325,7 +1239,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AccountPortfolio'
-
     Totals:
       type: object
       properties:
@@ -1350,7 +1263,6 @@ components:
         cashBalance:
           type: number
           description: The cash balance
-
     AccountPortfolio:
       type: object
       properties:
@@ -1371,7 +1283,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Position'
-
     Position:
       type: object
       properties:
@@ -1486,7 +1397,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PositionLot'
-
     Product:
       type: object
       properties:
@@ -1520,7 +1430,6 @@ components:
           description: The expiration type for the option
         productId:
           $ref: '#/components/schemas/ProductId'
-
     ProductId:
       type: object
       properties:
@@ -1529,7 +1438,6 @@ components:
           description: The market symbol for the security being bought or sold
         typeCode:
           $ref: '#/components/schemas/TypeCode'
-
     PerformanceView:
       type: object
       properties:
@@ -1560,7 +1468,6 @@ components:
           type: integer
           format: int64
           description: The time of the last trade
-
     FundamentalView:
       type: object
       properties:
@@ -1597,7 +1504,6 @@ components:
           description: The 52 week range
         quoteStatus:
           $ref: '#/components/schemas/QuoteStatus'
-
     OptionsWatchView:
       type: object
       properties:
@@ -1622,7 +1528,6 @@ components:
           type: integer
           format: int64
           description: The time of the last trade
-
     QuickView:
       type: object
       properties:
@@ -1657,7 +1562,6 @@ components:
           type: number
           format: double
           description: The weighted average maturity
-
     CompleteView:
       type: object
       properties:
@@ -1866,7 +1770,6 @@ components:
           description: The CUSIP number
         quoteStatus:
           $ref: '#/components/schemas/QuoteStatus'
-
     PositionLot:
       type: object
       properties:
@@ -1968,7 +1871,6 @@ components:
           type: integer
           format: int32
           description: The short type
-
     TransactionListResponse:
       type: object
       properties:
@@ -1994,7 +1896,6 @@ components:
         marker:
           type: string
           description: The marker for the next page
-
     Transaction:
       type: object
       properties:
@@ -2039,7 +1940,6 @@ components:
         detailsURI:
           type: string
           description: URI to get transaction details
-
     TransactionDetailsResponse:
       type: object
       properties:
@@ -2068,7 +1968,6 @@ components:
           $ref: '#/components/schemas/Category'
         brokerage:
           $ref: '#/components/schemas/Brokerage'
-
     Category:
       type: object
       properties:
@@ -2084,7 +1983,6 @@ components:
         parentName:
           type: string
           description: The parent category name
-
     Brokerage:
       type: object
       properties:
@@ -2124,8 +2022,6 @@ components:
           type: integer
           format: int64
           description: The settlement date
-
-    # ========== Market Schemas ==========
     QuoteResponse:
       type: object
       properties:
@@ -2135,7 +2031,6 @@ components:
             $ref: '#/components/schemas/QuoteData'
         messages:
           $ref: '#/components/schemas/Messages'
-
     QuoteData:
       type: object
       properties:
@@ -2149,13 +2044,13 @@ components:
         quoteStatus:
           type: string
           enum:
-            - REALTIME
-            - DELAYED
-            - CLOSING
-            - EH_REALTIME
-            - EH_BEFORE_OPEN
-            - EH_CLOSED
-            - INDICATIVE_REALTIME
+          - REALTIME
+          - DELAYED
+          - CLOSING
+          - EH_REALTIME
+          - EH_BEFORE_OPEN
+          - EH_CLOSED
+          - INDICATIVE_REALTIME
         ahFlag:
           type: string
           description: After hours flag
@@ -2179,7 +2074,6 @@ components:
         errorMessage:
           type: string
           description: Error message if quote failed
-
     AllQuoteDetails:
       type: object
       properties:
@@ -2351,7 +2245,6 @@ components:
           type: integer
           format: int64
           description: Average volume
-
     FundamentalQuoteDetails:
       type: object
       properties:
@@ -2374,7 +2267,6 @@ components:
           format: double
         symbolDescription:
           type: string
-
     IntradayQuoteDetails:
       type: object
       properties:
@@ -2404,7 +2296,6 @@ components:
         totalVolume:
           type: integer
           format: int64
-
     OptionQuoteDetails:
       type: object
       properties:
@@ -2447,7 +2338,6 @@ components:
           type: string
         optionGreeks:
           $ref: '#/components/schemas/OptionGreeks'
-
     OptionGreeks:
       type: object
       description: Option Greeks values for measuring option risk
@@ -2479,7 +2369,6 @@ components:
         currentValue:
           type: boolean
           description: Whether current values are available
-
     Week52QuoteDetails:
       type: object
       properties:
@@ -2505,7 +2394,6 @@ components:
         totalVolume:
           type: integer
           format: int64
-
     MutualFundQuoteDetails:
       type: object
       properties:
@@ -2531,7 +2419,6 @@ components:
         changeClosePercentage:
           type: number
           format: double
-
     QuoteProduct:
       type: object
       properties:
@@ -2540,19 +2427,19 @@ components:
         securityType:
           type: string
           enum:
-            - BOND
-            - EQ
-            - INDX
-            - MF
-            - MMF
-            - OPTN
+          - BOND
+          - EQ
+          - INDX
+          - MF
+          - MMF
+          - OPTN
         securitySubType:
           type: string
         callPut:
           type: string
           enum:
-            - CALL
-            - PUT
+          - CALL
+          - PUT
         expiryYear:
           type: integer
           format: int32
@@ -2564,8 +2451,6 @@ components:
           format: int32
         strikePrice:
           type: number
-
-    # ========== Product Lookup Schemas ==========
     LookupResponse:
       type: object
       properties:
@@ -2573,7 +2458,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LookupData'
-
     LookupData:
       type: object
       properties:
@@ -2586,8 +2470,6 @@ components:
         type:
           type: string
           description: The security type (e.g., EQUITY, OPTION, MUTUAL_FUND, ETF)
-
-    # ========== Option Chain Schemas ==========
     OptionChainResponse:
       type: object
       properties:
@@ -2608,7 +2490,6 @@ components:
           description: The near price used for the option chain
         selected:
           $ref: '#/components/schemas/SelectedED'
-
     SelectedED:
       type: object
       description: The selected expiration date
@@ -2622,7 +2503,6 @@ components:
         day:
           type: integer
           description: The day of the selected expiration date
-
     OptionChainPair:
       type: object
       properties:
@@ -2633,7 +2513,6 @@ components:
         pairType:
           type: string
           description: The pair type (CALLONLY, PUTONLY, CALLPUT)
-
     OptionDetails:
       type: object
       properties:
@@ -2656,8 +2535,8 @@ components:
         optionType:
           type: string
           enum:
-            - CALL
-            - PUT
+          - CALL
+          - PUT
           description: The option type
         strikePrice:
           type: number
@@ -2725,8 +2604,6 @@ components:
         expiryType:
           type: string
           description: The expiration type (DAILY, WEEKLY, MONTHLY, QUARTERLY)
-
-    # ========== Option Expire Date Schemas ==========
     OptionExpireDateResponse:
       type: object
       properties:
@@ -2734,7 +2611,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ExpirationDate'
-
     ExpirationDate:
       type: object
       properties:
@@ -2750,14 +2626,12 @@ components:
         expiryType:
           type: string
           enum:
-            - UNSPECIFIED
-            - DAILY
-            - WEEKLY
-            - MONTHLY
-            - QUARTERLY
+          - UNSPECIFIED
+          - DAILY
+          - WEEKLY
+          - MONTHLY
+          - QUARTERLY
           description: The type of option expiry
-
-    # ========== Orders Schemas ==========
     OrdersResponse:
       type: object
       properties:
@@ -2773,7 +2647,6 @@ components:
             $ref: '#/components/schemas/Order'
         messages:
           $ref: '#/components/schemas/Messages'
-
     Order:
       type: object
       properties:
@@ -2787,16 +2660,16 @@ components:
         orderType:
           type: string
           enum:
-            - EQ
-            - OPTN
-            - SPREADS
-            - BUY_WRITES
-            - BUTTERFLY
-            - IRON_BUTTERFLY
-            - CONDOR
-            - IRON_CONDOR
-            - MF
-            - MMF
+          - EQ
+          - OPTN
+          - SPREADS
+          - BUY_WRITES
+          - BUTTERFLY
+          - IRON_BUTTERFLY
+          - CONDOR
+          - IRON_CONDOR
+          - MF
+          - MMF
         totalOrderValue:
           type: number
           description: Total order value
@@ -2809,7 +2682,6 @@ components:
             $ref: '#/components/schemas/OrderDetail'
         events:
           $ref: '#/components/schemas/OrderEvents'
-
     OrderDetail:
       type: object
       properties:
@@ -2817,9 +2689,6 @@ components:
           type: integer
         accountId:
           type: string
-        previewTime:
-          type: integer
-          format: int64
         placedTime:
           type: integer
           format: int64
@@ -2831,49 +2700,49 @@ components:
         status:
           type: string
           enum:
-            - OPEN
-            - EXECUTED
-            - CANCELLED
-            - INDIVIDUAL_FILLS
-            - CANCEL_REQUESTED
-            - EXPIRED
-            - REJECTED
-            - PARTIAL
-            - DO_NOT_EXERCISE
-            - DONE_TRADE_EXECUTED
+          - OPEN
+          - EXECUTED
+          - CANCELLED
+          - INDIVIDUAL_FILLS
+          - CANCEL_REQUESTED
+          - EXPIRED
+          - REJECTED
+          - PARTIAL
+          - DO_NOT_EXERCISE
+          - DONE_TRADE_EXECUTED
         orderType:
           type: string
         orderTerm:
           type: string
           enum:
-            - GOOD_UNTIL_CANCEL
-            - GOOD_FOR_DAY
-            - GOOD_TILL_DATE
-            - IMMEDIATE_OR_CANCEL
-            - FILL_OR_KILL
+          - GOOD_UNTIL_CANCEL
+          - GOOD_FOR_DAY
+          - GOOD_TILL_DATE
+          - IMMEDIATE_OR_CANCEL
+          - FILL_OR_KILL
         priceType:
           type: string
           enum:
-            - MARKET
-            - LIMIT
-            - STOP
-            - STOP_LIMIT
-            - TRAILING_STOP_CNST_BY_LOWER_TRIGGER
-            - UPPER_TRIGGER_BY_TRAILING_STOP_CNST
-            - TRAILING_STOP_PRCT_BY_LOWER_TRIGGER
-            - UPPER_TRIGGER_BY_TRAILING_STOP_PRCT
-            - TRAILING_STOP_CNST
-            - TRAILING_STOP_PRCT
-            - HIDDEN_STOP
-            - HIDDEN_STOP_BY_LOWER_TRIGGER
-            - UPPER_TRIGGER_BY_HIDDEN_STOP
-            - NET_DEBIT
-            - NET_CREDIT
-            - NET_EVEN
-            - MARKET_ON_OPEN
-            - MARKET_ON_CLOSE
-            - LIMIT_ON_OPEN
-            - LIMIT_ON_CLOSE
+          - MARKET
+          - LIMIT
+          - STOP
+          - STOP_LIMIT
+          - TRAILING_STOP_CNST_BY_LOWER_TRIGGER
+          - UPPER_TRIGGER_BY_TRAILING_STOP_CNST
+          - TRAILING_STOP_PRCT_BY_LOWER_TRIGGER
+          - UPPER_TRIGGER_BY_TRAILING_STOP_PRCT
+          - TRAILING_STOP_CNST
+          - TRAILING_STOP_PRCT
+          - HIDDEN_STOP
+          - HIDDEN_STOP_BY_LOWER_TRIGGER
+          - UPPER_TRIGGER_BY_HIDDEN_STOP
+          - NET_DEBIT
+          - NET_CREDIT
+          - NET_EVEN
+          - MARKET_ON_OPEN
+          - MARKET_ON_CLOSE
+          - LIMIT_ON_OPEN
+          - LIMIT_ON_CLOSE
         limitPrice:
           type: number
         stopPrice:
@@ -2883,8 +2752,8 @@ components:
         marketSession:
           type: string
           enum:
-            - REGULAR
-            - EXTENDED
+          - REGULAR
+          - EXTENDED
         allOrNone:
           type: boolean
         instrument:
@@ -2907,10 +2776,6 @@ components:
           type: integer
         replacesOrderId:
           type: integer
-        previewId:
-          type: integer
-          format: int64
-
     OrderInstrument:
       type: object
       properties:
@@ -2921,21 +2786,21 @@ components:
         orderAction:
           type: string
           enum:
-            - BUY
-            - SELL
-            - BUY_TO_COVER
-            - SELL_SHORT
-            - BUY_OPEN
-            - BUY_CLOSE
-            - SELL_OPEN
-            - SELL_CLOSE
-            - EXCHANGE
+          - BUY
+          - SELL
+          - BUY_TO_COVER
+          - SELL_SHORT
+          - BUY_OPEN
+          - BUY_CLOSE
+          - SELL_OPEN
+          - SELL_CLOSE
+          - EXCHANGE
         quantityType:
           type: string
           enum:
-            - QUANTITY
-            - DOLLAR
-            - ALL_I_OWN
+          - QUANTITY
+          - DOLLAR
+          - ALL_I_OWN
         quantity:
           type: number
         cancelQuantity:
@@ -2962,21 +2827,20 @@ components:
         currency:
           type: string
           enum:
-            - USD
-            - EUR
-            - GBP
-            - HKD
-            - JPY
-            - CAD
+          - USD
+          - EUR
+          - GBP
+          - HKD
+          - JPY
+          - CAD
         osiKey:
           type: string
           description: OSI key for options
         mfTransaction:
           type: string
           enum:
-            - BUY
-            - SELL
-
+          - BUY
+          - SELL
     OrderProduct:
       type: object
       properties:
@@ -2985,16 +2849,16 @@ components:
         securityType:
           type: string
           enum:
-            - EQ
-            - OPTN
-            - INDX
-            - MF
-            - MMF
+          - EQ
+          - OPTN
+          - INDX
+          - MF
+          - MMF
         callPut:
           type: string
           enum:
-            - CALL
-            - PUT
+          - CALL
+          - PUT
         expiryYear:
           type: integer
           format: int32
@@ -3008,7 +2872,6 @@ components:
           type: number
         expiryType:
           type: string
-
     OrderEvents:
       type: object
       properties:
@@ -3016,38 +2879,37 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OrderEvent'
-
     OrderEvent:
       type: object
       properties:
         name:
           type: string
           enum:
-            - UNSPECIFIED
-            - ORDER_PLACED
-            - SENT_TO_CMS
-            - SENT_TO_MARKET
-            - MARKET_SENT_ACKNOWLEDGED
-            - CANCEL_REQUESTED
-            - ORDER_MODIFIED
-            - ORDER_SENT_TO_BROKER_REVIEW
-            - SYSTEM_REJECTED
-            - ORDER_REJECTED
-            - ORDER_CANCELLED
-            - CANCEL_REJECTED
-            - ORDER_EXPIRED
-            - ORDER_EXECUTED
-            - ORDER_ADJUSTED
-            - ORDER_REVERSED
-            - REVERSE_CANCELLATION
-            - REVERSE_EXPIRATION
-            - OPTION_POSITION_ASSIGNED
-            - OPEN_ORDER_ADJUSTED
-            - CA_CANCELLED
-            - CA_BOOKED
-            - IPO_ALLOCATED
-            - DONE_TRADE_EXECUTED
-            - REJECTION_REVERSAL
+          - UNSPECIFIED
+          - ORDER_PLACED
+          - SENT_TO_CMS
+          - SENT_TO_MARKET
+          - MARKET_SENT_ACKNOWLEDGED
+          - CANCEL_REQUESTED
+          - ORDER_MODIFIED
+          - ORDER_SENT_TO_BROKER_REVIEW
+          - SYSTEM_REJECTED
+          - ORDER_REJECTED
+          - ORDER_CANCELLED
+          - CANCEL_REJECTED
+          - ORDER_EXPIRED
+          - ORDER_EXECUTED
+          - ORDER_ADJUSTED
+          - ORDER_REVERSED
+          - REVERSE_CANCELLATION
+          - REVERSE_EXPIRATION
+          - OPTION_POSITION_ASSIGNED
+          - OPEN_ORDER_ADJUSTED
+          - CA_CANCELLED
+          - CA_BOOKED
+          - IPO_ALLOCATED
+          - DONE_TRADE_EXECUTED
+          - REJECTION_REVERSAL
         dateTime:
           type: integer
           format: int64
@@ -3057,212 +2919,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OrderInstrument'
-
-    PreviewOrderRequestEnvelope:
-      type: object
-      required:
-        - PreviewOrderRequest
-      properties:
-        PreviewOrderRequest:
-          $ref: '#/components/schemas/PreviewOrderRequest'
-
-    PreviewOrderRequest:
-      type: object
-      required:
-        - orderType
-        - Order
-        - clientOrderId
-      properties:
-        orderType:
-          type: string
-          enum:
-            - EQ
-            - OPTN
-            - SPREADS
-            - BUY_WRITES
-            - BUTTERFLY
-            - IRON_BUTTERFLY
-            - CONDOR
-            - IRON_CONDOR
-            - MF
-            - MMF
-        clientOrderId:
-          type: string
-          description: Unique ID (up to 20 alphanumeric chars) to prevent duplicates
-          maxLength: 20
-        Order:
-          type: array
-          items:
-            $ref: '#/components/schemas/OrderDetailRequest'
-
-    OrderDetailRequest:
-      type: object
-      required:
-        - accountId
-        - allOrNone
-        - priceType
-        - orderTerm
-        - Instrument
-        - marketSession        
-      properties:
-        accountId: 
-          type: string
-          description: The numeric account ID
-        allOrNone:
-          type: boolean
-          default: false
-        priceType:
-          type: string
-          enum:
-            - MARKET
-            - LIMIT
-            - STOP
-            - STOP_LIMIT
-            - NET_DEBIT
-            - NET_CREDIT
-            - NET_EVEN
-        orderTerm:
-          type: string
-          enum:
-            - GOOD_UNTIL_CANCEL
-            - GOOD_FOR_DAY
-            - GOOD_TILL_DATE
-            - IMMEDIATE_OR_CANCEL
-            - FILL_OR_KILL
-        marketSession:
-          type: string
-          enum:
-            - REGULAR
-            - EXTENDED
-        stopPrice:
-          type: number
-        limitPrice:
-          type: number
-        stopLimitPrice:
-          type: number
-        Instrument:
-          type: array
-          items:
-            $ref: '#/components/schemas/InstrumentRequest'
-
-    InstrumentRequest:
-      type: object
-      required:
-        - Product
-        - orderAction
-        - quantityType
-        - quantity
-      properties:
-        Product:
-          $ref: '#/components/schemas/ProductRequest'
-        orderAction:
-          type: string
-          enum:
-            - BUY
-            - SELL
-            - BUY_TO_COVER
-            - SELL_SHORT
-            - BUY_OPEN
-            - BUY_CLOSE
-            - SELL_OPEN
-            - SELL_CLOSE
-        quantityType:
-          type: string
-          enum:
-            - QUANTITY
-            - DOLLAR
-            - ALL_I_OWN
-        quantity:
-          type: number
-
-    ProductRequest:
-      type: object
-      required:
-        - symbol
-        - securityType
-      properties:
-        symbol:
-          type: string
-        securityType:
-          type: string
-          enum:
-            - EQ
-            - OPTN
-            - MF
-            - MMF
-        callPut:
-          type: string
-          enum:
-            - CALL
-            - PUT
-        expiryYear:
-          type: integer
-          format: int32
-        expiryMonth:
-          type: integer
-          format: int32
-        expiryDay:
-          type: integer
-          format: int32
-        strikePrice:
-          type: number
-
-    PreviewOrderResponse:
-      type: object
-      properties:
-        orderType:
-          type: string
-        messageList:
-          $ref: '#/components/schemas/Messages'
-        totalOrderValue:
-          type: number
-        totalCommission:
-          type: number
-        order:
-          type: array
-          items:
-            $ref: '#/components/schemas/OrderDetail'
-        previewIds:
-          type: array
-          items:
-            $ref: '#/components/schemas/PreviewId'
-        previewTime:
-          type: integer
-          format: int64
-        dstFlag:
-          type: boolean
-        accountId:
-          type: string
-        optionLevelCd:
-          type: integer
-          format: int32
-        marginLevelCd:
-          type: string
-          enum:
-            - UNSPECIFIED
-            - MARGIN_TRADING_NOT_ALLOWED
-            - MARGIN_TRADING_ALLOWED
-            - MARGIN_TRADING_ALLOWED_ON_OPTIONS
-            - MARGIN_TRADING_ALLOWED_ON_PM
-        isEmployee:
-          type: boolean
-        commissionMessage:
-          type: string
-        clientOrderId:
-          type: string
-
-    PreviewId:
-      type: object
-      properties:
-        previewId:
-          type: integer
-          format: int64
-        cashMargin:
-          type: string
-          enum:
-            - CASH
-            - MARGIN
-
     Messages:
       type: object
       properties:
@@ -3270,7 +2926,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Message'
-
     Message:
       type: object
       properties:
@@ -3284,10 +2939,9 @@ components:
         type:
           type: string
           enum:
-            - WARNING
-            - INFO
-            - INFO_HOLD
-            - ERROR
-
+          - WARNING
+          - INFO
+          - INFO_HOLD
+          - ERROR
 security:
-  - oauth1: []
+- oauth1: []
