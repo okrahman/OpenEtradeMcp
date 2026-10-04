@@ -1,0 +1,16 @@
+logging:
+  receivers:
+    etrade_audit:
+      type: files
+      include_paths: [/srv/etrade/state/redacted-audit.jsonl]
+    etrade_security:
+      type: files
+      include_paths: [/srv/etrade/state/security.jsonl]
+  processors:
+    etrade_json:
+      type: parse_json
+  service:
+    pipelines:
+      etrade:
+        receivers: [etrade_audit, etrade_security]
+        processors: [etrade_json]

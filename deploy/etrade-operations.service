@@ -1,0 +1,10 @@
+[Unit]
+Description=Etrade approval backup and redacted audit export
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/etrade/deploy/operations.py
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/srv/etrade/state
+PrivateTmp=true

@@ -1,0 +1,9 @@
+services:
+  gateway:
+    environment:
+      Fixtures: 'true'
+      TokenKeyFile: null
+      ConsumerKeyFile: null
+      ConsumerSecretFile: null
+    volumes:
+    - '${SECRETS_ROOT}/gateway-fixture:/run/secrets:ro'

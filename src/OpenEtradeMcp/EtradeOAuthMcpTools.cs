@@ -4,15 +4,13 @@ using ModelContextProtocol.Server;
 
 namespace OpenEtradeMcp;
 
-[McpServerToolType]
 public sealed class EtradeOAuthMcpTools(EtradeOAuth1AuthenticationHandler authentication)
 {
     private static string Json(object result) => JsonSerializer.Serialize(result);
     private static string Error(Exception ex) => Json(new { success = false, error =
         ex is EtradeOperationException or OAuthProviderException ? ex.Message : "OAuth request failed. Check OAuth status and retry." });
 
-    [McpServerTool(Name = "etrade_oauth_start")]
-    [Description("Start OAuth authorization and return the URL to visit.")]
+        [Description("Start OAuth authorization and return the URL to visit.")]
     public async Task<string> StartOAuthAsync()
     {
         try { return Json(new { success = true, authorizationUrl = await authentication.StartAsync(),
@@ -20,8 +18,7 @@ public sealed class EtradeOAuthMcpTools(EtradeOAuth1AuthenticationHandler authen
         catch (Exception ex) { return Error(ex); }
     }
 
-    [McpServerTool(Name = "etrade_oauth_complete")]
-    [Description("Exchange the verification code for access credentials.")]
+        [Description("Exchange the verification code for access credentials.")]
     public async Task<string> CompleteOAuthAsync([Description("Verification code from E*TRADE.")] string verifierCode)
     {
         try { await authentication.CompleteAsync(verifierCode); return Json(new { success = true,
@@ -29,15 +26,13 @@ public sealed class EtradeOAuthMcpTools(EtradeOAuth1AuthenticationHandler authen
         catch (Exception ex) { return Error(ex); }
     }
 
-    [McpServerTool(Name = "etrade_oauth_status")]
-    [Description("Check authentication and recovery status.")]
+        [Description("Check authentication and recovery status.")]
     public string GetOAuthStatus() => Json(new { isAuthenticated = authentication.IsAuthenticated,
         hasPendingAuthorization = authentication.Session.HasPendingAuthorization,
         authorizationUrl = authentication.Session.AuthorizationUrl, expiresAt = authentication.Session.ExpiresAt,
         recoveryStatus = authentication.Session.RecoveryStatus });
 
-    [McpServerTool(Name = "etrade_oauth_renew")]
-    [Description("Renew inactive credentials. Midnight Eastern expiration still requires reauthorization.")]
+        [Description("Renew inactive credentials. Midnight Eastern expiration still requires reauthorization.")]
     public async Task<string> RenewOAuthAsync()
     {
         try { await authentication.RenewAsync(); return Json(new { success = true, message = "Access token renewed successfully.",
@@ -45,8 +40,7 @@ public sealed class EtradeOAuthMcpTools(EtradeOAuth1AuthenticationHandler authen
         catch (Exception ex) { return Error(ex); }
     }
 
-    [McpServerTool(Name = "etrade_oauth_revoke")]
-    [Description("Revoke access credentials and delete local persistence.")]
+        [Description("Revoke access credentials and delete local persistence.")]
     public async Task<string> RevokeOAuthAsync()
     {
         try { await authentication.RevokeAsync(); return Json(new { success = true, message = "Access token revoked. You are now logged out." }); }

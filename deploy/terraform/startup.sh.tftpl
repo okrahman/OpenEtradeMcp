@@ -1,0 +1,71 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+# Host service only. Containers have no metadata access or Secret Manager identity.
+apt-get update -qq
+apt-get install -y docker.io docker-compose-v2 python3 curl jq gnupg
+curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/google-cloud.gpg
+echo 'deb [signed-by=/usr/share/keyrings/google-cloud.gpg] https://packages.cloud.google.com/apt cloud-sdk main' > /etc/apt/sources.list.d/google-cloud-sdk.list
+apt-get update -qq
+apt-get install -y google-cloud-cli
+systemctl enable --now docker
+install -d -m 0700 /srv/etrade /run/etrade-secrets
+if ! blkid /dev/disk/by-id/google-etrade-state >/dev/null; then
+  mkfs.ext4 /dev/disk/by-id/google-etrade-state
+fi
+mountpoint -q /srv/etrade || mount -o nodev,nosuid,noexec /dev/disk/by-id/google-etrade-state /srv/etrade
+install -d -m 0700 -o 10001 -g 10001 /srv/etrade/state/authorization /srv/etrade/state/gateway
+# Install an immutable reviewed deployment bundle; no secret payloads in metadata or Terraform.
+gcloud storage cp 'gs://${bucket}/${object}' /run/etrade-bundle.tar
+printf '%s  %s\n' '${sha256}' /run/etrade-bundle.tar | sha256sum -c -
+install -d -m 0700 /opt/etrade
+tar --no-same-owner -xf /run/etrade-bundle.tar -C /opt/etrade
+cat >/run/etrade-secret-map.json <<'JSON'
+${secrets_json}
+JSON
+python3 /opt/etrade/deploy/fetch-secrets.py /run/etrade-secret-map.json '${project}'
+install -d -m 0700 -o 10001 -g 10001 /run/etrade-secrets/gateway-fixture
+for filename in ca.crt service.pfx assertion-public.pem; do
+  install -m 0600 -o 10001 -g 10001 "/run/etrade-secrets/gateway/$filename" "/run/etrade-secrets/gateway-fixture/$filename"
+done
+cat >/opt/etrade/deploy/.env <<'ENV'
+DOMAIN=${domain}
+OWNER_SUBJECT=${owner}
+GOOGLE_CLIENT_ID=${google_client}
+SECRETS_ROOT=/run/etrade-secrets
+STATE_ROOT=/srv/etrade/state
+ENV
+cat >/run/etrade-image-map.json <<'JSON'
+${images_json}
+JSON
+python3 - <<'PY'
+import json,re
+with open('/opt/etrade/deploy/.env','a') as env:
+ for service,image in json.load(open('/run/etrade-image-map.json')).items():
+  if not re.fullmatch(r'[a-z-]+', service) or not re.fullmatch(r'[\w./:-]+@sha256:[a-f0-9]{64}', image): raise ValueError('image map')
+  env.write(service.upper().replace('-','_') + '_IMAGE=' + image + '\n')
+PY
+# Docker pulls use host credentials; never mount a Docker socket or credential file into apps.
+gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin '${region}-docker.pkg.dev'
+cd /opt/etrade/deploy
+docker compose pull
+# Stop-before-start: all old processes stop before replacement and exclusive token-store lock acquisition.
+docker compose down
+# Default boot is fixtures; owner must explicitly complete verification before activating production.
+docker compose -f compose.yaml -f compose.fixtures.yaml create
+./firewall.sh
+if [ -f /srv/etrade/state/authorization/authorization.db ]; then
+  docker compose -f compose.yaml -f compose.fixtures.yaml start
+else
+  echo 'Authorization storage unprovisioned; fixture services remain stopped. Provision owner through IAP.'
+fi
+install -m 0644 /opt/etrade/deploy/etrade-security.service /etc/systemd/system/
+install -m 0644 /opt/etrade/deploy/etrade-operations.service /etc/systemd/system/
+install -m 0644 /opt/etrade/deploy/etrade-operations.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now etrade-operations.timer etrade-security.service
+# Official Google Ops Agent installs host telemetry; reviewed configuration only reads redacted files.
+curl -fsSLo /run/install-ops-agent.sh https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+bash /run/install-ops-agent.sh --also-install
+install -m 0644 /opt/etrade/deploy/ops-agent.yaml /etc/google-cloud-ops-agent/config.yaml
+systemctl restart google-cloud-ops-agent

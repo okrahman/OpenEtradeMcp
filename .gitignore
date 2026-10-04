@@ -419,3 +419,19 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Production-only service deployment secrets and state
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfvars
+**/*.tfplan
+deploy/secrets/
+deploy/state/
+**/*.pfx
+**/*.pem
+**/*.key
+**/authorization.db*
+**/credentials.json
+tests/.fixture-command.json
+**/__pycache__/

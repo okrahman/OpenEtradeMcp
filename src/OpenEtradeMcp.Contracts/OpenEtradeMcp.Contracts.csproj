@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+<PropertyGroup><TargetFrameworks>net10.0</TargetFrameworks></PropertyGroup>
+<ItemGroup>
+<PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+<FrameworkReference Include="Microsoft.AspNetCore.App" />
+</ItemGroup>
+<ItemGroup><EmbeddedResource Include="operations.json" /></ItemGroup></Project>

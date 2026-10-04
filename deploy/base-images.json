@@ -1,0 +1,6 @@
+{
+  "runtime": "mcr.microsoft.com/dotnet/aspnet@sha256:0fa044f682cb7d93a5a90401a00c626c66f7b00b86922be9441f869eae039f80",
+  "sdk": "mcr.microsoft.com/dotnet/sdk@sha256:0eeb52c76e35a5431ca707ad2bc75e38006a05393045d8532ae44c15d9474523",
+  "nginx": "nginxinc/nginx-unprivileged@sha256:f4522a5f23f9caebcae9be6e3940ea0599a2b9eb05222c7118d01fc887e848d6",
+  "python": "python@sha256:65a94bb37b630c482dfd31e5fb9b449cb26c31eab1b7a125cd6bd624acfe3b30"
+}

@@ -1,0 +1,15 @@
+[Unit]
+Description=Collect fixed redacted Etrade security events
+After=docker.service
+Requires=docker.service
+[Service]
+WorkingDirectory=/opt/etrade/deploy
+ExecStart=/bin/bash -c 'docker compose logs --follow --no-log-prefix --since 0s | python3 security-log.py >> /srv/etrade/state/security.jsonl'
+Restart=always
+RestartSec=10
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/srv/etrade/state
+[Install]
+WantedBy=multi-user.target
