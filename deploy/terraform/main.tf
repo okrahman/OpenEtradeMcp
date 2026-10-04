@@ -191,6 +191,24 @@ resource "google_monitoring_uptime_check_config" "https" {
     labels = { project_id = var.project_id, host = var.domain }
   }
 }
+resource "google_monitoring_alert_policy" "availability" {
+  display_name          = "Etrade HTTPS unavailable"
+  combiner              = "OR"
+  notification_channels = [google_monitoring_notification_channel.owner.name]
+  conditions {
+    display_name = "HTTPS metadata unavailable for two minutes"
+    condition_threshold {
+      filter          = "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.type=\"uptime_url\" AND metric.label.check_id=\"${google_monitoring_uptime_check_config.https.uptime_check_id}\""
+      comparison      = "COMPARISON_LT"
+      threshold_value = 1
+      duration        = "120s"
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_FRACTION_TRUE"
+      }
+    }
+  }
+}
 output "public_ip" { value = google_compute_address.public.address }
 output "artifact_registry" { value = google_artifact_registry_repository.images.name }
 

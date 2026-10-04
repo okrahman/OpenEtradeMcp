@@ -6,7 +6,7 @@ Automated .NET tests cover the ten-tool discovery set and credential-free adapte
 
 Python proxy tests cover exact production authority, IP literals, private/link-local/IPv6 destinations, TLS SNI, duplicate/encrypted SNI, fragmented and malformed ClientHello records and DNS rebinding. Container fixture checks verify public TLS metadata, authenticated MCP entry, hidden internal routes, non-root users, read-only roots, dropped capabilities, no privileged/host-network/Docker-socket access, secret mounts and a gateway fixture without production credentials.
 
-`deploy/verify-network.sh` applies the actual host firewall and probes each permitted connection plus forbidden services, direct IP/IPv6, metadata, host services, external DNS and proxy bypass. It needs root on a dedicated host. The current workstation requires a sudo password, so this test is **not locally verified**; CI/target-host execution is required. Public and internal certificate issuance/rotation, firewall behavior under the target Docker backend and audit/alert delivery require target-host verification.
+`deploy/verify-network.sh` applies the actual host firewall and probes each permitted connection plus forbidden services, direct IP/IPv6, metadata, host services, external DNS and proxy bypass. It needs root on a dedicated host. The current workstation requires a sudo password, so this test is **not locally verified**; the privileged GitHub CI acceptance run passed. Repeat it on the target host before production rollout. Public and internal certificate issuance/rotation, firewall behavior under the target Docker backend and audit/alert delivery require target-host verification.
 
 Google Cloud apply, domain/public TLS issuance, Google sign-in against the real provider, owner device enrollment, fresh production E*TRADE authorization, production read smoke checks, provider-enforced read-only privileges and ChatGPT/Meta Muse/local-client isolation remain **unverified** without deployment inputs and credentials. Keep those clients unenrolled until fixture credential isolation is demonstrated.
 
@@ -15,11 +15,11 @@ Compatibility/operations limits: enrollment supports public `none` clients with 
 ## Recorded local checks — October 4, 2026
 
 - Release solution build: success, zero warnings/errors.
-- .NET acceptance: 67 passed, zero failed/skipped.
+- .NET acceptance: 69 passed, zero failed/skipped.
 - Proxy boundaries: 10 passed.
 - All four application/proxy image builds: success from recorded pinned bases; ingress uses the pinned nginx base.
 - Container fixture TLS/security checks: passed, including independent mTLS proxy role and exact-destination denials. No live brokerage credentials were mounted.
 - Terraform 1.13.5 init/fmt/validate: passed; rendered startup script and shell/Python syntax checks passed.
 - NuGet dependency audit: no known vulnerable packages in the configured feed, including transitive dependencies.
 - Diff/secret checks: passed; high-confidence staged token/private-key scan found no secrets. `.vscode/` and local `.env` are excluded.
-- Host-firewall namespace acceptance: blocked locally by password-required sudo; target/CI execution pending.
+- Host-firewall namespace acceptance: passed on GitHub CI, including the permitted service matrix and forbidden service/IP/IPv6/metadata/DNS/proxy-bypass probes. Target-host backend verification remains pending.

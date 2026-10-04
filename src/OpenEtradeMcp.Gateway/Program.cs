@@ -31,6 +31,7 @@ if (!fixtures)
         InnerHandler = BrokerageTransport.Create(config) } }) { Timeout = TimeSpan.FromSeconds(30), MaxResponseContentBufferSize = 2 * 1024 * 1024 };
 }
 else if (new[] { "ConsumerKeyFile", "ConsumerSecretFile", "TokenKeyFile" }.Any(k => config[k] != null)) throw new InvalidOperationException("Fixture deployment must not mount production credentials.");
+if (auth != null) builder.Services.AddHostedService(_ => new AuthorizationWatch(auth));
 var app = builder.Build(); InternalTls.SafeErrors(app);
 app.Lifetime.ApplicationStopped.Register(() => { business?.Dispose(); store?.Dispose(); key.Dispose(); });
 app.Use(async (ctx, next) => {
@@ -61,8 +62,8 @@ app.MapPost("/internal/read", async (HttpContext ctx, Assertions assertions, Rea
         return Results.Content(document.RootElement.GetRawText(), "application/json");
     } catch (EtradeOperationException) { SecurityEvent.Write("reauthorization_required"); return Results.Json(new { error = "owner_reauthorization_required" }, statusCode: 503); }
 });
-app.MapGet("/admin/status", () => Results.Json(new { production = true, fixtures, authenticated = auth?.IsAuthenticated ?? false,
-    expiresAt = auth?.Session.ExpiresAt, recovery = auth?.Session.RecoveryStatus ?? "fixtures" }));
+app.MapGet("/admin/status", async () => { if (auth != null) await auth.RefreshStatusAsync(); return Results.Json(new { production = true, fixtures, authenticated = auth?.IsAuthenticated ?? false,
+    expiresAt = auth?.Session.ExpiresAt, recovery = auth?.Session.RecoveryStatus ?? "fixtures" }); });
 app.MapPost("/admin/start", async () => fixtures ? Results.BadRequest() : Results.Json(new { authorizationUrl = await auth!.StartAsync() }));
 app.MapPost("/admin/complete", async (HttpContext ctx) => {
     if (fixtures) return Results.BadRequest();

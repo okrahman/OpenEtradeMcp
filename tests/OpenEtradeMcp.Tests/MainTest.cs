@@ -334,6 +334,41 @@ public sealed class SecurityTests
     }
 
     [Fact]
+    public async Task StatusRefresh_ExpiresStoredAuthorizationWithoutProviderRequest()
+    {
+        var store = new FailingStore { Value = Credentials };
+        var provider = new Provider();
+        var clock = new Clock(Noon);
+        using var client = new HttpClient(provider);
+        var auth = new EtradeOAuth1AuthenticationHandler(client, new() { ConsumerKey = "fixture", ConsumerSecret = "fixture" }, store, clock: clock);
+        await auth.InitializeAsync();
+        Assert.True(auth.IsAuthenticated);
+        var calls = provider.Calls;
+        clock.Now = Credentials.ExpiresAt;
+        await auth.RefreshStatusAsync();
+        Assert.Null(store.Value);
+        Assert.False(auth.IsAuthenticated);
+        Assert.Equal("expired", auth.Session.RecoveryStatus);
+        Assert.Equal(calls, provider.Calls);
+    }
+
+    [Fact]
+    public async Task StatusRefresh_ClearsExpiredPendingOwnerFlowWithoutProviderRequest()
+    {
+        var provider = new Provider();
+        var clock = new Clock(Noon);
+        using var client = new HttpClient(provider);
+        var auth = new EtradeOAuth1AuthenticationHandler(client, new() { ConsumerKey = "fixture", ConsumerSecret = "fixture" }, new FailingStore(), clock: clock);
+        await auth.StartAsync();
+        Assert.NotNull(auth.Session.AuthorizationUrl);
+        clock.Now = Noon.AddMinutes(10);
+        await auth.RefreshStatusAsync();
+        Assert.Null(auth.Session.AuthorizationUrl);
+        await Assert.ThrowsAsync<EtradeOperationException>(() => auth.CompleteAsync("expired-verifier"));
+        Assert.Equal(1, provider.Calls);
+    }
+
+    [Fact]
     public async Task PersistenceFailure_DoesNotReportAuthenticationSuccess_RevocationFailureClearsLocally()
     {
         var store = new FailingStore { FailSave = true };

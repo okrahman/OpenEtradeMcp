@@ -185,6 +185,17 @@ public sealed class EtradeOAuth1AuthenticationHandler : IAuthenticationHandler
         finally { gate.Release(); }
     }
 
+    public async Task RefreshStatusAsync()
+    {
+        await gate.WaitAsync();
+        try
+        {
+            await ExpireAsync();
+            if (Session.PendingUntil <= clock.GetUtcNow()) Session.RequestToken = Session.RequestTokenSecret = Session.AuthorizationUrl = null;
+        }
+        finally { gate.Release(); }
+    }
+
     public Task AuthenticateAsync() => RenewAsync();
     public void AuthenticateRequest(HttpRequestMessage request, IEnumerable<KeyValuePair<string, string>> queryParameters,
         IEnumerable<KeyValuePair<string, JsonElement>> bodyParameters) { /* Signed after recovery in outbound guard. */ }
