@@ -168,7 +168,11 @@ def fetch_policy(request, approved):
     uri = urllib.parse.urlsplit(url)
     if uri.scheme != 'https' or uri.port not in (None,443) or uri.username or uri.password or uri.fragment:
         raise ValueError('HTTPS endpoint required')
-    return uri
+    try:
+        ipaddress.ip_address(uri.hostname)
+    except ValueError:
+        return uri
+    raise ValueError('IP literals denied')
 
 
 async def identity_fetch(reader, writer, approved):

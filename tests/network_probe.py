@@ -7,8 +7,9 @@ port=int(port)
 if mode=='dns-denied':
     sock=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);sock.settimeout(1)
     # A minimal standard A query; no credentials or financial data.
-    sock.sendto(bytes.fromhex('123401000001000000000000')+b'\x07example\x03com\x00\x00\x01\x00\x01',(host,port))
-    try:sock.recvfrom(512)
+    try:
+        sock.sendto(bytes.fromhex('123401000001000000000000')+b'\x07example\x03com\x00\x00\x01\x00\x01',(host,port))
+        sock.recvfrom(512)
     except OSError:sys.exit(0)
     raise SystemExit('FAIL: external DNS responded')
 sock=socket.socket(socket.AF_INET6 if ':' in host else socket.AF_INET,socket.SOCK_STREAM)
