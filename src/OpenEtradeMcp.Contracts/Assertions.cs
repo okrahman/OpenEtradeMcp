@@ -10,6 +10,7 @@ public sealed class Assertions(RSA key, string issuer, TimeProvider? clock = nul
     public const string Audience = "etrade-read-gateway";
     public const string Type = "etrade-request+jwt";
     private readonly TimeProvider time = clock ?? TimeProvider.System;
+    private readonly string canonicalIssuer = new Uri(issuer).AbsoluteUri;
     public string Issue(TokenStatus status, ReadRequest request)
     {
         RequestPolicy.Validate(request);
@@ -17,7 +18,7 @@ public sealed class Assertions(RSA key, string issuer, TimeProvider? clock = nul
         var claims = new[] { new Claim("agent", status.AgentId), new Claim("grant", status.GrantId),
             new Claim("client", status.ClientId), new Claim("origin", status.TokenId), new Claim("op", request.Operation.ToString()),
             new Claim("digest", request.Digest()), new Claim(JwtRegisteredClaimNames.Jti, Convert.ToHexString(RandomNumberGenerator.GetBytes(32))) };
-        var token = new JwtSecurityToken(issuer, Audience, claims, now, now.AddSeconds(10), new(new RsaSecurityKey(key), SecurityAlgorithms.RsaSha256));
+        var token = new JwtSecurityToken(canonicalIssuer, Audience, claims, now, now.AddSeconds(10), new(new RsaSecurityKey(key), SecurityAlgorithms.RsaSha256));
         token.Header["typ"] = Type;
         token.Payload["iat"] = new DateTimeOffset(now).ToUnixTimeSeconds();
         return new JwtSecurityTokenHandler().WriteToken(token);
@@ -27,7 +28,7 @@ public sealed class Assertions(RSA key, string issuer, TimeProvider? clock = nul
         if (token.Length > 8192) throw new PolicyException();
         var handler = new JwtSecurityTokenHandler { MapInboundClaims = false };
         var principal = handler.ValidateToken(token, new TokenValidationParameters {
-            ValidateIssuer = true, ValidIssuer = issuer, ValidateAudience = true, ValidAudience = Audience,
+            ValidateIssuer = true, ValidIssuer = canonicalIssuer, ValidateAudience = true, ValidAudience = Audience,
             ValidateIssuerSigningKey = true, IssuerSigningKey = new RsaSecurityKey(key),
             ValidAlgorithms = [SecurityAlgorithms.RsaSha256], ValidTypes = [Type], RequireExpirationTime = true,
             ClockSkew = TimeSpan.Zero, LifetimeValidator = (nbf, exp, _, _) => nbf.HasValue && exp.HasValue &&

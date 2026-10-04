@@ -17,6 +17,10 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 
 var builder = WebApplication.CreateBuilder(args);
 var config = builder.Configuration;
+var issuerUri = new Uri(config.Required("Issuer"));
+if (issuerUri.Scheme != "https" || !issuerUri.IsDefaultPort || issuerUri.UserInfo != "" || issuerUri.Query != "" || issuerUri.Fragment != "" || issuerUri.AbsolutePath != "/")
+    throw new InvalidOperationException("Canonical HTTPS issuer origin required.");
+config["Issuer"] = issuerUri.AbsoluteUri;
 var provision = args.Contains("--provision-owner");
 if (!provision) InternalTls.Listen(builder);
 builder.Logging.ClearProviders(); // Redacted audit events are persisted; HTTP tokens, query strings and bodies are never logged.

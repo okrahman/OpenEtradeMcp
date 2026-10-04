@@ -76,10 +76,10 @@ public sealed class CloudSecurityTests
         Assert.ThrowsAny<Exception>(() => assertions.Verify(string.Join('.', parts)));
         Assert.ThrowsAny<Exception>(() => assertions.Verify("external-token"));
         var now=clock.Now.UtcDateTime;
-        var wrongAudience=new System.IdentityModel.Tokens.Jwt.JwtSecurityToken("https://example.test","wrong-gateway",null,now,now.AddSeconds(10),new(new Microsoft.IdentityModel.Tokens.RsaSecurityKey(rsa),Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha256));
+        var wrongAudience=new System.IdentityModel.Tokens.Jwt.JwtSecurityToken("https://example.test/","wrong-gateway",null,now,now.AddSeconds(10),new(new Microsoft.IdentityModel.Tokens.RsaSecurityKey(rsa),Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha256));
         wrongAudience.Header["typ"]=Assertions.Type;
         Assert.ThrowsAny<Exception>(()=>assertions.Verify(new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().WriteToken(wrongAudience)));
-        var wrongType=new System.IdentityModel.Tokens.Jwt.JwtSecurityToken("https://example.test",Assertions.Audience,null,now,now.AddSeconds(10),new(new Microsoft.IdentityModel.Tokens.RsaSecurityKey(rsa),Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha256));
+        var wrongType=new System.IdentityModel.Tokens.Jwt.JwtSecurityToken("https://example.test/",Assertions.Audience,null,now,now.AddSeconds(10),new(new Microsoft.IdentityModel.Tokens.RsaSecurityKey(rsa),Microsoft.IdentityModel.Tokens.SecurityAlgorithms.RsaSha256));
         wrongType.Header["typ"]="at+jwt";
         Assert.ThrowsAny<Exception>(()=>assertions.Verify(new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().WriteToken(wrongType)));
         clock.Now = clock.Now.AddSeconds(10); Assert.ThrowsAny<Exception>(() => assertions.Verify(token));
